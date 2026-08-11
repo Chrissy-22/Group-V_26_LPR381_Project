@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Group_V_26_LPR381_Project.Presentation_Layer;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -16,7 +17,7 @@ namespace Group_V_26_LPR381_Project
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new Form1());
+            Application.Run(new frmMainForm());
         }
     }
 }

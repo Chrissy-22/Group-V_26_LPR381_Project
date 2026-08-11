@@ -46,14 +46,27 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Form1.cs">
+    <Compile Include="Algorithms\BranchAndBound.cs" />
+    <Compile Include="Algorithms\ConstraintHandler.cs" />
+    <Compile Include="Algorithms\CuttingPlane.cs" />
+    <Compile Include="Algorithms\DualSimplex.cs" />
+    <Compile Include="Algorithms\ISolver.cs" />
+    <Compile Include="Algorithms\Knapsack.cs" />
+    <Compile Include="Algorithms\PrimalSimplex.cs" />
+    <Compile Include="Algorithms\RevisedPrimalSimplex.cs" />
+    <Compile Include="Models\LinearProgram.cs" />
+    <Compile Include="Models\Solution.cs" />
+    <Compile Include="Presentation Layer\frmMainForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Form1.Designer.cs">
-      <DependentUpon>Form1.cs</DependentUpon>
+    <Compile Include="Presentation Layer\frmMainForm.Designer.cs">
+      <DependentUpon>frmMainForm.cs</DependentUpon>
     </Compile>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <EmbeddedResource Include="Presentation Layer\frmMainForm.resx">
+      <DependentUpon>frmMainForm.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
@@ -75,6 +88,15 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Data\Binary1.txt" />
+    <Content Include="Data\Binary2.txt" />
+    <Content Include="Data\Binary3.txt" />
+    <Content Include="Data\Primal1.txt" />
+    <Content Include="Data\Primal2.txt" />
+    <Content Include="Data\RevisedSimplex1.txt" />
+    <Content Include="Data\RevisedSimplex2.txt" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
