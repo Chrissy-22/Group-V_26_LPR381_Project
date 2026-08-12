@@ -3,476 +3,1072 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace Group_V_26_LPR381_Project.Algorithms
 {
+    /// <summary>
+    /// Branch and Bound algorithm for integer linear programming.
+    ///
+    /// The algorithm:
+    /// 1. Solves the LP relaxation of the original problem.
+    /// 2. Checks whether the solution is infeasible, unbounded, integer,
+    ///    or fractional.
+    /// 3. If fractional, branches on a fractional decision variable:
+    ///       xi <= floor(value)
+    ///       xi >= ceil(value)
+    /// 4. Solves both resulting sub-problems using Dual Simplex.
+    /// 5. Uses the best known integer solution as the incumbent/bound.
+    /// 6. Continues until all branches have been processed or pruned.
+    ///
+    /// Sub-problems are processed depth-first.
+    /// </summary>
     public class BranchAndBound : ISolver
     {
         private const double TOLERANCE = 1e-6;
+
+        // Best integer solution found so far.
         private double _bestKnownValue;
         private bool _hasBestSolution;
         private Solution _bestIntegerSolution;
+
         private int _maxDepth = 30;
 
         public BranchAndBound()
         {
         }
 
+        /// <summary>
+        /// Solves the integer programming problem using Branch and Bound.
+        /// </summary>
         public Solution Solve(LinearProgram program)
         {
-            var solution = new Solution();
-            _bestKnownValue = program.IsMaximization ? double.MinValue : double.MaxValue;
+            var finalSolution = new Solution();
+
+            // Initialise incumbent.
+            if (program.IsMaximization)
+                _bestKnownValue = double.MinValue;
+            else
+                _bestKnownValue = double.MaxValue;
+
             _hasBestSolution = false;
             _bestIntegerSolution = null;
 
-            solution.AddMessage("Running Branch and Bound algorithm...");
-            solution.AddStep("Canonical Form", FormatCanonicalForm(program));
+            finalSolution.AddMessage("Running Branch and Bound algorithm...");
+            finalSolution.AddMessage("");
 
-            // Step 1: Solve the initial LP using dual simplex and display the optimal table
+            finalSolution.AddStep(
+                "Canonical Form",
+                FormatCanonicalForm(program)
+            );
+
+            finalSolution.AddMessage("");
+            finalSolution.AddMessage("Branch and Bound Search");
+            finalSolution.AddMessage("");
+
+            // ---------------------------------------------------------
+            // ROOT LP RELAXATION
+            // ---------------------------------------------------------
+
             var rootDualSimplex = new DualSimplex();
             var rootSolution = rootDualSimplex.Solve(program);
 
-            // Check if the initial solution is infeasible or unbounded
-            if (rootSolution.Messages.Any(m => m.Contains("infeasible") || m.Contains("unbounded")))
+            // Check whether the original LP relaxation can be solved.
+            if (IsInfeasible(rootSolution))
             {
-                solution.AddMessage("Initial problem is infeasible or unbounded. Cannot proceed with Branch and Bound.");
-                foreach (var message in rootSolution.Messages)
-                    solution.AddMessage(message);
-                return solution;
+                finalSolution.AddGroupHeader("Sub-problem 0", 0);
+                finalSolution.AddMessage("Result: INFEASIBLE");
+                finalSolution.AddMessage(
+                    "The original LP relaxation is infeasible."
+                );
+                finalSolution.AddMessage(
+                    "Branch and Bound cannot continue."
+                );
+
+                return finalSolution;
             }
 
-            // Use depth-first search with a stack
+            if (IsUnbounded(rootSolution))
+            {
+                finalSolution.AddGroupHeader("Sub-problem 0", 0);
+                finalSolution.AddMessage("Result: UNBOUNDED");
+                finalSolution.AddMessage(
+                    "The original LP relaxation is unbounded."
+                );
+                finalSolution.AddMessage(
+                    "Branch and Bound cannot continue."
+                );
+
+                return finalSolution;
+            }
+
+            // ---------------------------------------------------------
+            // SEARCH STACK
+            // ---------------------------------------------------------
+
             var stack = new Stack<SubProblem>();
 
-            // Add root problem to stack
             stack.Push(new SubProblem
             {
                 DualSimplex = rootDualSimplex,
                 Solution = rootSolution,
-                Path = "",
-                Level = 0
+                Path = "0",
+                Level = 0,
+                BranchConstraint = null,
+                ParentBranchVariable = null,
+                ParentBranchValue = null
             });
 
-            // Process stack depth-first
+            // ---------------------------------------------------------
+            // DEPTH-FIRST SEARCH
+            // ---------------------------------------------------------
+
             while (stack.Count > 0)
             {
                 var current = stack.Pop();
 
                 if (current.Level > _maxDepth)
                 {
-                    solution.AddMessage($"Maximum branching depth ({_maxDepth}) reached for sub-problem {current.Path}. Terminating branch.");
+                    finalSolution.AddGroupHeader(
+                        $"Sub-problem {current.Path}",
+                        current.Level
+                    );
+
+                    finalSolution.AddMessage(
+                        $"Result: MAXIMUM DEPTH REACHED ({_maxDepth})."
+                    );
+
+                    finalSolution.AddMessage(
+                        "This branch will not be explored further."
+                    );
+
                     continue;
                 }
 
-                var result = ProcessSubProblem(current, solution, program);
+                var children = ProcessSubProblem(
+                    current,
+                    finalSolution,
+                    program
+                );
 
-                if (result != null && result.Count > 0)
+                /*
+                 * Stack is LIFO.
+                 *
+                 * If we want:
+                 *
+                 *     1.1
+                 *     1.2
+                 *
+                 * to be processed in that order, 1.2 must be pushed first.
+                 */
+                for (int i = children.Count - 1; i >= 0; i--)
                 {
-                    // Push in reverse order so that .1 gets processed before .2 (depth-first)
-                    for (int i = result.Count - 1; i >= 0; i--)
-                    {
-                        stack.Push(result[i]);
-                    }
+                    stack.Push(children[i]);
                 }
             }
+
+            // ---------------------------------------------------------
+            // FINAL RESULT
+            // ---------------------------------------------------------
+
+            finalSolution.AddGroupHeader(
+                "Branch and Bound Complete",
+                0
+            );
 
             if (_bestIntegerSolution != null)
             {
-                solution.OptimalValue = _bestIntegerSolution.OptimalValue;
-                solution.VariableValues = _bestIntegerSolution.VariableValues;
-                solution.AddMessage($"\nBest integer solution found with value: {_bestIntegerSolution.OptimalValue:F3}");
+                finalSolution.OptimalValue =
+                    _bestIntegerSolution.OptimalValue;
+
+                finalSolution.VariableValues =
+                    _bestIntegerSolution.VariableValues;
+
+                finalSolution.AddMessage(
+                    $"Best integer solution found: " +
+                    $"{NumberFormatter.Format(_bestIntegerSolution.OptimalValue)}"
+                );
+
+                finalSolution.AddMessage("");
+
+                finalSolution.AddMessage(
+                    "Optimal integer variable values:"
+                );
+
+                foreach (var variable in GetDecisionVariables(
+                    _bestIntegerSolution))
+                {
+                    finalSolution.AddMessage(
+                        $"  {variable.Key} = " +
+                        $"{NumberFormatter.Format(variable.Value)}"
+                    );
+                }
             }
             else
             {
-                solution.AddMessage("No feasible integer solution found.");
+                finalSolution.AddMessage(
+                    "No feasible integer solution was found."
+                );
             }
 
-            return solution;
+            return finalSolution;
         }
 
-        private List<SubProblem> ProcessSubProblem(SubProblem current, Solution mainSolution, LinearProgram originalProgram)
+        // =============================================================
+        // PROCESS ONE SUB-PROBLEM
+        // =============================================================
+
+        private List<SubProblem> ProcessSubProblem(
+            SubProblem current,
+            Solution mainSolution,
+            LinearProgram originalProgram)
         {
-            var sb = new StringBuilder();
-            var subProblems = new List<SubProblem>();
+            var children = new List<SubProblem>();
 
-            // Sub-problem header
-            string subProblemTitle;
-            if (string.IsNullOrEmpty(current.Path))
-            {
-                subProblemTitle = "Sub-problem ";
-                sb.AppendLine("Root Problem (LP Relaxation):");
-            }
-            else
-            {
-                subProblemTitle = $"Sub-problem {current.Path}";
-                sb.AppendLine($"Sub-problem {current.Path} started:");
-            }
+            // ---------------------------------------------------------
+            // HEADER
+            // ---------------------------------------------------------
 
-            // Check for infeasibility first
-            if (current.Solution.Messages.Any(m => m.Contains("infeasible")))
-            {
-                sb.AppendLine($"Sub-problem {current.Path} is infeasible. Pruning this branch.");
-                mainSolution.AddStep(subProblemTitle, sb.ToString());
-                return subProblems;
-            }
+            mainSolution.AddGroupHeader(
+                $"Sub-problem {current.Path}",
+                current.Level
+            );
 
-            // Show final tableau with proper formatting
-            if (current.Solution.FinalTableau != null)
+            // ---------------------------------------------------------
+            // BRANCH CONSTRAINT
+            // ---------------------------------------------------------
+
+            if (!string.IsNullOrWhiteSpace(current.BranchConstraint))
             {
-                sb.AppendLine(FormatTableau(current.Solution.FinalTableau, current.Solution));
+                mainSolution.AddMessage(
+                    $"Branch constraint: {current.BranchConstraint}"
+                );
+
+                mainSolution.AddMessage("");
             }
 
-            // Show solution values
-            sb.AppendLine("Solution:");
-            if (current.Solution.VariableValues != null)
+            // ---------------------------------------------------------
+            // SHOW FINAL TABLEAU
+            // ---------------------------------------------------------
+
+            AppendSubProblemTableau(
+                mainSolution,
+                current
+            );
+
+            // ---------------------------------------------------------
+            // INFEASIBLE
+            // ---------------------------------------------------------
+
+            if (IsInfeasible(current.Solution))
             {
-                // Show auxiliary variables first (s, e variables)
-                var auxVars = current.Solution.VariableValues
-                    .Where(kvp => kvp.Key.StartsWith("s") || kvp.Key.StartsWith("e"))
-                    .OrderBy(kvp => kvp.Key);
-                foreach (var kvp in auxVars)
+                mainSolution.AddMessage(
+                    "Result: INFEASIBLE"
+                );
+
+                mainSolution.AddMessage(
+                    "This branch is pruned. No further branching."
+                );
+
+                mainSolution.AddMessage("");
+
+                return children;
+            }
+
+            // ---------------------------------------------------------
+            // UNBOUNDED
+            // ---------------------------------------------------------
+
+            if (IsUnbounded(current.Solution))
+            {
+                mainSolution.AddMessage(
+                    "Result: UNBOUNDED"
+                );
+
+                mainSolution.AddMessage(
+                    "This branch is pruned. No further branching."
+                );
+
+                mainSolution.AddMessage("");
+
+                return children;
+            }
+
+            // ---------------------------------------------------------
+            // LP RELAXATION VALUE
+            // ---------------------------------------------------------
+
+            mainSolution.AddMessage(
+                $"Sub-problem value: " +
+                $"{NumberFormatter.Format(current.Solution.OptimalValue)}"
+            );
+
+            mainSolution.AddMessage("");
+
+            // ---------------------------------------------------------
+            // VARIABLE VALUES
+            // ---------------------------------------------------------
+
+            AppendVariableValues(
+                mainSolution,
+                current.Solution
+            );
+
+            // ---------------------------------------------------------
+            // BOUND CHECK
+            // ---------------------------------------------------------
+
+            if (_hasBestSolution &&
+                ShouldPrune(
+                    current.Solution.OptimalValue,
+                    _bestKnownValue,
+                    originalProgram.IsMaximization))
+            {
+                mainSolution.AddMessage(
+                    $"Result: PRUNED BY BOUND"
+                );
+
+                mainSolution.AddMessage(
+                    $"Sub-problem value " +
+                    $"{NumberFormatter.Format(current.Solution.OptimalValue)} " +
+                    $"{(originalProgram.IsMaximization ? "<=" : ">=")} " +
+                    $"current best integer value " +
+                    $"{NumberFormatter.Format(_bestKnownValue)}."
+                );
+
+                mainSolution.AddMessage(
+                    "No further branching."
+                );
+
+                mainSolution.AddMessage("");
+
+                return children;
+            }
+
+            // ---------------------------------------------------------
+            // FIND FRACTIONAL VARIABLE
+            // ---------------------------------------------------------
+
+            var fractionalVariable =
+                FindMostFractionalVariable(
+                    current.Solution,
+                    originalProgram
+                );
+
+            // ---------------------------------------------------------
+            // INTEGER SOLUTION
+            // ---------------------------------------------------------
+
+            if (fractionalVariable == null)
+            {
+                if (!_hasBestSolution ||
+                    IsBetterSolution(
+                        current.Solution.OptimalValue,
+                        _bestKnownValue,
+                        originalProgram.IsMaximization))
                 {
-                    sb.AppendLine($"  {kvp.Key} = {kvp.Value:F3}");
-                }
+                    _bestKnownValue =
+                        current.Solution.OptimalValue;
 
-                // Show decision variables
-                var decisionVars = current.Solution.VariableValues
-                    .Where(kvp => kvp.Key.StartsWith("x"))
-                    .OrderBy(kvp => GetVariableIndex(kvp.Key));
-                foreach (var kvp in decisionVars)
-                {
-                    sb.AppendLine($"  {kvp.Key} = {kvp.Value:F3}");
-                }
-                sb.AppendLine($"  Objective Value = {current.Solution.OptimalValue:F3}");
-            }
+                    _hasBestSolution = true;
 
-            // BOUND CHECK: Compare with best known solution
-            if (_hasBestSolution && ShouldPrune(current.Solution.OptimalValue, _bestKnownValue, originalProgram.IsMaximization))
-            {
-                sb.AppendLine($"Sub-problem {current.Path} can be pruned by bound.");
-                sb.AppendLine($"Current objective value {current.Solution.OptimalValue:F3} is not better than best known solution {_bestKnownValue:F3}.");
-                mainSolution.AddStep(subProblemTitle, sb.ToString());
-                return subProblems;
-            }
+                    _bestIntegerSolution =
+                        current.Solution;
 
-            // Step 2: Check to see if any basic decision variables are decimal
-            var fractionalVar = FindMostFractionalVariable(current.Solution, originalProgram);
+                    mainSolution.AddMessage(
+                        "Result: INTEGER SOLUTION"
+                    );
 
-            if (fractionalVar == null)
-            {
-                // All decision variables are integers
-                if (string.IsNullOrEmpty(current.Path))
-                {
-                    sb.AppendLine("All decision variables are integers in the root problem. No branching required.");
+                    mainSolution.AddMessage(
+                        "This is a new best integer solution."
+                    );
                 }
                 else
                 {
-                    sb.AppendLine($"Sub-problem {current.Path} found an integer solution!");
+                    mainSolution.AddMessage(
+                        "Result: INTEGER SOLUTION"
+                    );
 
-                    if (!_hasBestSolution || IsBetterSolution(current.Solution.OptimalValue, _bestKnownValue, originalProgram.IsMaximization))
-                    {
-                        _bestKnownValue = current.Solution.OptimalValue;
-                        _hasBestSolution = true;
-                        _bestIntegerSolution = current.Solution;
-                        sb.AppendLine($"This is the new best integer solution with value {current.Solution.OptimalValue:F3}");
-                    }
-                    else
-                    {
-                        sb.AppendLine($"This integer solution ({current.Solution.OptimalValue:F3}) is not better than current best ({_bestKnownValue:F3})");
-                    }
+                    mainSolution.AddMessage(
+                        $"This solution is not better than the " +
+                        $"current best value of " +
+                        $"{NumberFormatter.Format(_bestKnownValue)}."
+                    );
                 }
 
-                mainSolution.AddStep(subProblemTitle, sb.ToString());
-                return subProblems;
+                mainSolution.AddMessage(
+                    "No further branching."
+                );
+
+                mainSolution.AddMessage("");
+
+                return children;
             }
-            else
+
+            // ---------------------------------------------------------
+            // FRACTIONAL SOLUTION
+            // ---------------------------------------------------------
+
+            string variableName = fractionalVariable.Item1;
+            double variableValue = fractionalVariable.Item2;
+
+            int variableIndex =
+                GetVariableIndex(variableName);
+
+            double floorValue =
+                Math.Floor(variableValue);
+
+            double ceilValue =
+                Math.Ceiling(variableValue);
+
+            mainSolution.AddMessage(
+                $"Result: FRACTIONAL SOLUTION"
+            );
+
+            mainSolution.AddMessage(
+                $"{variableName} = " +
+                $"{NumberFormatter.Format(variableValue)} " +
+                "is fractional."
+            );
+
+            mainSolution.AddMessage("");
+
+            mainSolution.AddMessage(
+                "This sub-problem will be branched on:"
+            );
+
+            mainSolution.AddMessage(
+                $"  {variableName} <= " +
+                $"{NumberFormatter.Format(floorValue)}"
+            );
+
+            mainSolution.AddMessage(
+                $"  {variableName} >= " +
+                $"{NumberFormatter.Format(ceilValue)}"
+            );
+
+            mainSolution.AddMessage("");
+
+            // ---------------------------------------------------------
+            // CREATE LOWER BRANCH
+            // ---------------------------------------------------------
+
+            string lowerPath =
+                string.IsNullOrEmpty(current.Path) ||
+                current.Path == "0"
+                    ? "1"
+                    : current.Path + ".1";
+
+            try
             {
-                // There are fractional decision variables - branch
-                string varName = fractionalVar.Item1;
-                double varValue = fractionalVar.Item2;
-                int varIndex = GetVariableIndex(varName);
+                var lowerDualSimplex =
+                    CloneDualSimplexState(
+                        current.DualSimplex
+                    );
 
-                sb.AppendLine($"Sub-problem {current.Path} will be branched on variable {varName} = {varValue:F3}");
-                mainSolution.AddStep(subProblemTitle, sb.ToString());
+                var lowerConstraint =
+                    CreateBranchConstraint(
+                        originalProgram,
+                        variableIndex,
+                        LinearProgram.Relation.LessThanOrEqual,
+                        floorValue
+                    );
 
-                double floorValue = Math.Floor(varValue);
-                double ceilValue = Math.Ceiling(varValue);
+                var lowerSolution =
+                    lowerDualSimplex.AddConstraintAndResolve(
+                        lowerConstraint
+                    );
 
-                // Create Sub-problem 1: x <= floor(value)
-                string subPath1 = string.IsNullOrEmpty(current.Path) ? "1" : current.Path + ".1";
-
-                try
-                {
-                    // Clone the current dual simplex state
-                    var dualSimplex1 = CloneDualSimplexState(current.DualSimplex);
-
-                    var constraint1 = new LinearProgram.Constraint();
-                    for (int i = 0; i < originalProgram.Variables.Count; i++)
+                children.Add(
+                    new SubProblem
                     {
-                        constraint1.Coefficients.Add(0);
+                        DualSimplex = lowerDualSimplex,
+                        Solution = lowerSolution,
+                        Path = lowerPath,
+                        Level = current.Level + 1,
+
+                        BranchConstraint =
+                            $"{variableName} <= " +
+                            $"{NumberFormatter.Format(floorValue)}",
+
+                        ParentBranchVariable =
+                            variableName,
+
+                        ParentBranchValue =
+                            floorValue
                     }
-                    constraint1.Coefficients[varIndex - 1] = 1;
-                    constraint1.Relation = LinearProgram.Relation.LessThanOrEqual;
-                    constraint1.Rhs = floorValue;
-
-                    var solution1 = dualSimplex1.AddConstraintAndResolve(constraint1);
-
-                    subProblems.Add(new SubProblem
-                    {
-                        DualSimplex = dualSimplex1,
-                        Solution = solution1,
-                        Path = subPath1,
-                        Level = current.Level + 1
-                    });
-                }
-                catch (Exception ex)
-                {
-                    mainSolution.AddMessage($"Error creating sub-problem {subPath1}: {ex.Message}");
-                }
-
-                // Create Sub-problem 2: x >= ceil(value)
-                string subPath2 = string.IsNullOrEmpty(current.Path) ? "2" : current.Path + ".2";
-
-                try
-                {
-                    // Clone the current dual simplex state
-                    var dualSimplex2 = CloneDualSimplexState(current.DualSimplex);
-
-                    var constraint2 = new LinearProgram.Constraint();
-                    for (int i = 0; i < originalProgram.Variables.Count; i++)
-                    {
-                        constraint2.Coefficients.Add(0);
-                    }
-                    constraint2.Coefficients[varIndex - 1] = 1;
-                    constraint2.Relation = LinearProgram.Relation.GreaterThanOrEqual;
-                    constraint2.Rhs = ceilValue;
-
-                    var solution2 = dualSimplex2.AddConstraintAndResolve(constraint2);
-
-                    subProblems.Add(new SubProblem
-                    {
-                        DualSimplex = dualSimplex2,
-                        Solution = solution2,
-                        Path = subPath2,
-                        Level = current.Level + 1
-                    });
-                }
-                catch (Exception ex)
-                {
-                    mainSolution.AddMessage($"Error creating sub-problem {subPath2}: {ex.Message}");
-                }
+                );
+            }
+            catch (Exception ex)
+            {
+                mainSolution.AddMessage(
+                    $"Error creating sub-problem " +
+                    $"{lowerPath}: {ex.Message}"
+                );
             }
 
-            return subProblems;
+            // ---------------------------------------------------------
+            // CREATE UPPER BRANCH
+            // ---------------------------------------------------------
+
+            string upperPath =
+                string.IsNullOrEmpty(current.Path) ||
+                current.Path == "0"
+                    ? "2"
+                    : current.Path + ".2";
+
+            try
+            {
+                var upperDualSimplex =
+                    CloneDualSimplexState(
+                        current.DualSimplex
+                    );
+
+                var upperConstraint =
+                    CreateBranchConstraint(
+                        originalProgram,
+                        variableIndex,
+                        LinearProgram.Relation.GreaterThanOrEqual,
+                        ceilValue
+                    );
+
+                var upperSolution =
+                    upperDualSimplex.AddConstraintAndResolve(
+                        upperConstraint
+                    );
+
+                children.Add(
+                    new SubProblem
+                    {
+                        DualSimplex = upperDualSimplex,
+                        Solution = upperSolution,
+                        Path = upperPath,
+                        Level = current.Level + 1,
+
+                        BranchConstraint =
+                            $"{variableName} >= " +
+                            $"{NumberFormatter.Format(ceilValue)}",
+
+                        ParentBranchVariable =
+                            variableName,
+
+                        ParentBranchValue =
+                            ceilValue
+                    }
+                );
+            }
+            catch (Exception ex)
+            {
+                mainSolution.AddMessage(
+                    $"Error creating sub-problem " +
+                    $"{upperPath}: {ex.Message}"
+                );
+            }
+
+            // ---------------------------------------------------------
+            // NEXT SUB-PROBLEM
+            // ---------------------------------------------------------
+
+            mainSolution.AddMessage(
+                $"Next sub-problem: {lowerPath}"
+            );
+
+            mainSolution.AddMessage("");
+
+            return children;
         }
 
-        private DualSimplex CloneDualSimplexState(DualSimplex original)
+        // =============================================================
+        // CREATE BRANCH CONSTRAINT
+        // =============================================================
+
+        private LinearProgram.Constraint CreateBranchConstraint(
+            LinearProgram originalProgram,
+            int variableIndex,
+            LinearProgram.Relation relation,
+            double rhs)
+        {
+            var constraint =
+                new LinearProgram.Constraint();
+
+            for (int i = 0;
+                 i < originalProgram.Variables.Count;
+                 i++)
+            {
+                constraint.Coefficients.Add(0);
+            }
+
+            constraint.Coefficients[
+                variableIndex - 1
+            ] = 1;
+
+            constraint.Relation = relation;
+            constraint.Rhs = rhs;
+
+            return constraint;
+        }
+
+        // =============================================================
+        // TABLEAU
+        // =============================================================
+
+        private void AppendSubProblemTableau(
+            Solution mainSolution,
+            SubProblem current)
+        {
+            if (current.Solution == null)
+                return;
+
+            if (current.Solution.IterationTableaux == null)
+                return;
+
+            if (current.Solution.IterationTableaux.Count == 0)
+                return;
+
+            int last =
+                current.Solution.IterationTableaux.Count - 1;
+
+            var headers =
+                last <
+                current.Solution.IterationColumnHeaders.Count
+                    ? current.Solution.IterationColumnHeaders[last]
+                    : null;
+
+            var pivotRow =
+                last <
+                current.Solution.IterationPivotRows.Count
+                    ? current.Solution.IterationPivotRows[last]
+                    : -1;
+
+            var pivotColumn =
+                last <
+                current.Solution.IterationPivotCols.Count
+                    ? current.Solution.IterationPivotCols[last]
+                    : -1;
+
+            mainSolution.AddIteration(
+                current.Solution.IterationTableaux[last],
+                "Final Pivot Table",
+                pivotRow,
+                pivotColumn,
+                headers
+            );
+        }
+
+        // =============================================================
+        // VARIABLE VALUES
+        // =============================================================
+
+        private void AppendVariableValues(
+            Solution mainSolution,
+            Solution solution)
+        {
+            if (solution.VariableValues == null ||
+                solution.VariableValues.Count == 0)
+            {
+                return;
+            }
+
+            mainSolution.AddMessage(
+                "Variable values:"
+            );
+
+            var decisionVariables =
+                GetDecisionVariables(solution);
+
+            foreach (var variable in decisionVariables)
+            {
+                mainSolution.AddMessage(
+                    $"  {variable.Key} = " +
+                    $"{NumberFormatter.Format(variable.Value)}"
+                );
+            }
+
+            mainSolution.AddMessage("");
+        }
+
+        private List<KeyValuePair<string, double>>
+            GetDecisionVariables(Solution solution)
+        {
+            return solution.VariableValues
+                .Where(kvp =>
+                    kvp.Key.StartsWith("x",
+                        StringComparison.OrdinalIgnoreCase))
+                .OrderBy(kvp =>
+                    GetVariableIndex(kvp.Key))
+                .ToList();
+        }
+
+        // =============================================================
+        // INFEASIBILITY
+        // =============================================================
+
+        private bool IsInfeasible(Solution solution)
+        {
+            if (solution == null)
+                return true;
+
+            if (solution.Messages == null)
+                return false;
+
+            return solution.Messages.Any(
+                m => m.IndexOf(
+                    "infeasible",
+                    StringComparison.OrdinalIgnoreCase) >= 0
+            );
+        }
+
+        // =============================================================
+        // UNBOUNDED
+        // =============================================================
+
+        private bool IsUnbounded(Solution solution)
+        {
+            if (solution == null)
+                return false;
+
+            if (solution.Messages == null)
+                return false;
+
+            return solution.Messages.Any(
+                m => m.IndexOf(
+                    "unbounded",
+                    StringComparison.OrdinalIgnoreCase) >= 0
+            );
+        }
+
+        // =============================================================
+        // BOUND
+        // =============================================================
+
+        private bool ShouldPrune(
+            double currentValue,
+            double bestKnownValue,
+            bool isMaximization)
+        {
+            if (isMaximization)
+            {
+                return currentValue <=
+                       bestKnownValue + TOLERANCE;
+            }
+
+            return currentValue >=
+                   bestKnownValue - TOLERANCE;
+        }
+
+        // =============================================================
+        // FIND FRACTIONAL VARIABLE
+        // =============================================================
+
+        private Tuple<string, double>
+            FindMostFractionalVariable(
+                Solution solution,
+                LinearProgram program)
+        {
+            if (solution == null ||
+                solution.VariableValues == null)
+            {
+                return null;
+            }
+
+            string selectedVariable = null;
+            double selectedValue = 0;
+
+            double closestToHalf =
+                double.MaxValue;
+
+            int lowestVariableIndex =
+                int.MaxValue;
+
+            var decisionVariables =
+                solution.VariableValues
+                    .Where(kvp =>
+                        kvp.Key.StartsWith(
+                            "x",
+                            StringComparison.OrdinalIgnoreCase))
+                    .OrderBy(kvp =>
+                        GetVariableIndex(kvp.Key))
+                    .ToList();
+
+            foreach (var variable in decisionVariables)
+            {
+                double value = variable.Value;
+
+                double fractionalPart =
+                    value - Math.Floor(value);
+
+                // Ignore values which are effectively integers.
+                if (fractionalPart <= TOLERANCE ||
+                    fractionalPart >= 1 - TOLERANCE)
+                {
+                    continue;
+                }
+
+                double distanceFromHalf =
+                    Math.Abs(
+                        fractionalPart - 0.5
+                    );
+
+                int variableIndex =
+                    GetVariableIndex(variable.Key);
+
+                /*
+                 * Most fractional variable rule:
+                 *
+                 * Choose the variable whose fractional part
+                 * is closest to 0.5.
+                 *
+                 * If tied, choose the lowest variable number.
+                 */
+                if (
+                    distanceFromHalf < closestToHalf ||
+                    (
+                        Math.Abs(
+                            distanceFromHalf -
+                            closestToHalf
+                        ) < TOLERANCE &&
+                        variableIndex <
+                        lowestVariableIndex
+                    )
+                )
+                {
+                    closestToHalf =
+                        distanceFromHalf;
+
+                    selectedVariable =
+                        variable.Key;
+
+                    selectedValue =
+                        value;
+
+                    lowestVariableIndex =
+                        variableIndex;
+                }
+            }
+
+            if (selectedVariable == null)
+                return null;
+
+            return Tuple.Create(
+                selectedVariable,
+                selectedValue
+            );
+        }
+
+        // =============================================================
+        // VARIABLE INDEX
+        // =============================================================
+
+        private int GetVariableIndex(
+            string variableName)
+        {
+            if (string.IsNullOrWhiteSpace(variableName))
+                return int.MaxValue;
+
+            return int.Parse(
+                variableName.Substring(1)
+            );
+        }
+
+        // =============================================================
+        // COMPARE SOLUTIONS
+        // =============================================================
+
+        private bool IsBetterSolution(
+            double newValue,
+            double currentBest,
+            bool isMaximization)
+        {
+            if (isMaximization)
+                return newValue >
+                       currentBest + TOLERANCE;
+
+            return newValue <
+                   currentBest - TOLERANCE;
+        }
+
+        // =============================================================
+        // CLONE DUAL SIMPLEX
+        // =============================================================
+
+        private DualSimplex CloneDualSimplexState(
+            DualSimplex original)
         {
             return original.Clone();
         }
 
-        private string FormatTableau(double[,] tableau, Solution solution)
+        // =============================================================
+        // CANONICAL FORM
+        // =============================================================
+
+        public string FormatCanonicalForm(
+            LinearProgram program)
         {
-            if (tableau == null)
-                return "Tableau not available";
+            var sb =
+                new StringBuilder();
 
-            var sb = new StringBuilder();
-            int rows = tableau.GetLength(0);
-            int cols = tableau.GetLength(1);
+            sb.AppendLine(
+                "Canonical Form (with slack variables):"
+            );
 
-            // Calculate variable counts
-            int decisionVars = solution.VariableCount;
-            int totalAuxVars = cols - decisionVars - 1; // -1 for RHS column
-
-            // Header row
-            sb.Append("\t");
-
-            // Decision variables
-            for (int i = 1; i <= decisionVars; i++)
-                sb.Append($"x{i}\t");
-
-            // Auxiliary variables
-            int slackCount = 0;
-            int excessCount = 0;
-            int artificialCount = 0;
-
-            for (int i = 0; i < totalAuxVars; i++)
-            {
-                // Determine variable type based on solution counts
-                if (slackCount < solution.SlackCount)
-                {
-                    slackCount++;
-                    sb.Append($"s{slackCount}\t");
-                }
-                else if (excessCount < solution.ExcessCount)
-                {
-                    excessCount++;
-                    sb.Append($"e{excessCount}\t");
-                }
-                else if (artificialCount < solution.ArtificialCount)
-                {
-                    artificialCount++;
-                    sb.Append($"a{artificialCount}\t");
-                }
-                else
-                {
-                    // Fallback naming
-                    sb.Append($"aux{i + 1}\t");
-                }
-            }
-
-            sb.AppendLine("RHS");
-
-            // Data rows
-            for (int i = 0; i < rows; i++)
-            {
-                if (i == 0)
-                    sb.Append("z\t");
-                else
-                    sb.Append($"Con {i}\t");
-
-                for (int j = 0; j < cols; j++)
-                {
-                    double value = tableau[i, j];
-                    if (Math.Abs(value) < TOLERANCE)
-                        value = 0;
-
-                    // Format numbers with 3 decimal places and comma separators like in expected output
-                    sb.Append($"{value:F3}\t".Replace('.', ','));
-                }
-                sb.AppendLine();
-            }
-
-            return sb.ToString();
-        }
-
-        private bool ShouldPrune(double currentValue, double bestKnownValue, bool isMaximization)
-        {
-            if (isMaximization)
-                return currentValue <= bestKnownValue + TOLERANCE;
-            else
-                return currentValue >= bestKnownValue - TOLERANCE;
-        }
-
-        private Tuple<string, double> FindMostFractionalVariable(Solution solution, LinearProgram program)
-        {
-            string mostFractionalVar = null;
-            double mostFractionalValue = 0;
-            double closestToHalf = double.MaxValue;
-            int lowestVarIndex = int.MaxValue;
-
-            var decisionVars = solution.VariableValues
-                .Where(kvp => kvp.Key.StartsWith("x"))
-                .OrderBy(kvp => GetVariableIndex(kvp.Key))
-                .ToList();
-
-            foreach (var kvp in decisionVars)
-            {
-                double fractionalPart = kvp.Value - Math.Floor(kvp.Value);
-
-                if (fractionalPart > TOLERANCE && fractionalPart < 1 - TOLERANCE)
-                {
-                    double distanceFromHalf = Math.Abs(fractionalPart - 0.5);
-                    int varIndex = GetVariableIndex(kvp.Key);
-
-                    if (distanceFromHalf < closestToHalf ||
-                        (Math.Abs(distanceFromHalf - closestToHalf) < TOLERANCE && varIndex < lowestVarIndex))
-                    {
-                        closestToHalf = distanceFromHalf;
-                        mostFractionalVar = kvp.Key;
-                        mostFractionalValue = kvp.Value;
-                        lowestVarIndex = varIndex;
-                    }
-                }
-            }
-
-            return mostFractionalVar != null ? Tuple.Create(mostFractionalVar, mostFractionalValue) : null;
-        }
-
-        private int GetVariableIndex(string varName)
-        {
-            return int.Parse(varName.Substring(1));
-        }
-
-        private bool IsBetterSolution(double newValue, double currentBest, bool isMaximization)
-        {
-            if (isMaximization)
-                return newValue > currentBest;
-            else
-                return newValue < currentBest;
-        }
-
-        public string FormatCanonicalForm(LinearProgram program)
-        {
-            var sb = new StringBuilder();
-            sb.AppendLine("Canonical Form (with slack variables):");
-
-            // Objective function in canonical form: z - c1*x1 - c2*x2 - ... = 0
             sb.Append("z");
-            for (int i = 0; i < program.Variables.Count; i++)
+
+            for (int i = 0;
+                 i < program.Variables.Count;
+                 i++)
             {
-                double coeff = program.IsMaximization ? -program.Variables[i].Coefficient : program.Variables[i].Coefficient;
-                if (coeff >= 0)
-                    sb.Append($" + {coeff:F0}x{i + 1}");
+                double coefficient =
+                    program.IsMaximization
+                        ? -program.Variables[i].Coefficient
+                        : program.Variables[i].Coefficient;
+
+                if (coefficient >= 0)
+                {
+                    sb.Append(
+                        $" + " +
+                        $"{NumberFormatter.Format(coefficient)}x{i + 1}"
+                    );
+                }
                 else
-                    sb.Append($" - {Math.Abs(coeff):F0}x{i + 1}");
+                {
+                    sb.Append(
+                        " - " +
+                        NumberFormatter.Format(Math.Abs(coefficient)) +
+                        "x" + (i + 1)
+                    );
+                }
             }
+
             sb.AppendLine(" = 0");
 
-            // Constraints in canonical form with slack variables
             int slackIndex = 1;
-            for (int i = 0; i < program.Constraints.Count; i++)
-            {
-                var constraint = program.Constraints[i];
 
-                // Decision variables
+            for (int i = 0;
+                 i < program.Constraints.Count;
+                 i++)
+            {
+                var constraint =
+                    program.Constraints[i];
+
                 bool first = true;
-                for (int j = 0; j < constraint.Coefficients.Count && j < program.Variables.Count; j++)
+
+                for (int j = 0;
+                     j < constraint.Coefficients.Count &&
+                     j < program.Variables.Count;
+                     j++)
                 {
-                    double coeff = constraint.Coefficients[j];
-                    if (Math.Abs(coeff) < TOLERANCE) continue;
+                    double coefficient =
+                        constraint.Coefficients[j];
+
+                    if (Math.Abs(coefficient) <
+                        TOLERANCE)
+                    {
+                        continue;
+                    }
 
                     if (first)
                     {
-                        sb.Append($"{coeff:F0}x{j + 1}");
+                        sb.Append(
+                            " - " +
+                            NumberFormatter.Format(Math.Abs(coefficient)) +
+                            "x" + (i + 1)
+                        );
+
                         first = false;
                     }
                     else
                     {
-                        if (coeff >= 0)
-                            sb.Append($" + {coeff:F0}x{j + 1}");
+                        if (coefficient >= 0)
+                        {
+                            sb.Append(
+                                " + " +
+                                NumberFormatter.Format(coefficient) +
+                                "x" + (j + 1)
+                            );
+                        }
                         else
-                            sb.Append($" - {Math.Abs(coeff):F0}x{j + 1}");
+                        {
+                            sb.Append(
+                                " - " +
+                                NumberFormatter.Format(Math.Abs(coefficient)) +
+                                "x" + (j + 1)
+                            );
+                        }
                     }
                 }
 
-                // Add slack/surplus variable based on constraint type
-                if (constraint.Relation == LinearProgram.Relation.LessThanOrEqual)
+                if (
+                    constraint.Relation ==
+                    LinearProgram.Relation.LessThanOrEqual
+                )
                 {
-                    sb.Append($" + s{slackIndex}");
+                    sb.Append(
+                        $" + s{slackIndex}"
+                    );
+
                     slackIndex++;
                 }
-                else if (constraint.Relation == LinearProgram.Relation.GreaterThanOrEqual)
+                else if (
+                    constraint.Relation ==
+                    LinearProgram.Relation.GreaterThanOrEqual
+                )
                 {
-                    sb.Append($" - s{slackIndex}");
+                    sb.Append(
+                        $" - s{slackIndex}"
+                    );
+
                     slackIndex++;
                 }
 
-                sb.AppendLine($" = {constraint.Rhs:F0}");
+                sb.AppendLine(
+                    " = " +
+                    NumberFormatter.Format(constraint.Rhs)
+                );
             }
 
-            sb.AppendLine("All variables >= 0");
+            sb.AppendLine(
+                "All variables >= 0"
+            );
 
             return sb.ToString();
         }
 
+        // =============================================================
+        // SUB-PROBLEM
+        // =============================================================
+
         private class SubProblem
         {
             public DualSimplex DualSimplex { get; set; }
+
             public Solution Solution { get; set; }
+
+            /// <summary>
+            /// Branch path.
+            ///
+            /// 0     = root
+            /// 1     = x <= floor
+            /// 2     = x >= ceil
+            /// 1.1   = first child of branch 1
+            /// 1.2   = second child of branch 1
+            /// </summary>
             public string Path { get; set; }
+
             public int Level { get; set; }
+
+            /// <summary>
+            /// The constraint that created this sub-problem.
+            /// </summary>
+            public string BranchConstraint { get; set; }
+
+            /// <summary>
+            /// Variable used to create this branch.
+            /// </summary>
+            public string ParentBranchVariable { get; set; }
+
+            /// <summary>
+            /// Floor/ceiling value used for this branch.
+            /// </summary>
+            public double? ParentBranchValue { get; set; }
         }
     }
 }

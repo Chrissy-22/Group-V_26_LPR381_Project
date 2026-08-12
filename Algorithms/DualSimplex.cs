@@ -3,7 +3,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using static Group_V_26_LPR381_Project.Models.LinearProgram;
 
 namespace Group_V_26_LPR381_Project.Algorithms
@@ -11,6 +10,8 @@ namespace Group_V_26_LPR381_Project.Algorithms
     public class DualSimplex : ISolver
     {
         private const double TOL = 1e-6;
+        private const double BIG_M = 1_000_000; // Big-M penalty for artificial variables
+
         private LinearProgram _program;
         private double[,] _matrix;
         private int _rows;
@@ -44,7 +45,7 @@ namespace Group_V_26_LPR381_Project.Algorithms
                 solution.AddMessage("Converted minimization problem to maximization by negating objective");
 
             solution.AddStep("Initial Tableau:", ToString());
-            solution.AddIteration((double[,])_matrix.Clone(), "Initial Tableau");
+            solution.AddIteration((double[,])_matrix.Clone(), "Initial Tableau", -1, -1, GetColumnHeaders());
 
             // Phase 1: Dual Simplex - Fix negative RHS values
             while (HasNegativeRHS())
@@ -63,10 +64,10 @@ namespace Group_V_26_LPR381_Project.Algorithms
                     return solution;
                 }
 
-                solution.AddMessage($"Dual Phase: Pivoting on row {pivotRow + 1}, column {pivotCol + 1} (RHS = {_matrix[pivotRow, _cols - 1]:F3})");
+                solution.AddMessage($"Dual Phase: Pivoting on row {pivotRow + 1}, column {pivotCol + 1} (RHS = {NumberFormatter.Format(_matrix[pivotRow, _cols - 1])})");
                 Pivot(pivotRow, pivotCol);
                 solution.AddStep($"Dual Iteration {IterationCount}: Pivot on row {pivotRow + 1}, column {pivotCol + 1}", ToString());
-                solution.AddIteration((double[,])_matrix.Clone(), $"After Dual Iteration {IterationCount}");
+                solution.AddIteration((double[,])_matrix.Clone(), $"After Dual Iteration {IterationCount}", pivotRow, pivotCol, GetColumnHeaders());
             }
 
             solution.AddMessage("Dual phase complete - all RHS values are non-negative. Starting primal phase for optimality.");
@@ -91,14 +92,16 @@ namespace Group_V_26_LPR381_Project.Algorithms
                 solution.AddMessage($"Primal Phase: Pivoting on row {pivotRow + 1}, column {pivotCol + 1}");
                 Pivot(pivotRow, pivotCol);
                 solution.AddStep($"Primal Iteration {IterationCount}: Pivot on row {pivotRow + 1}, column {pivotCol + 1}", ToString());
-                solution.AddIteration((double[,])_matrix.Clone(), $"After Primal Iteration {IterationCount}");
+                solution.AddIteration((double[,])_matrix.Clone(), $"After Primal Iteration {IterationCount}", pivotRow, pivotCol, GetColumnHeaders());
             }
+
+            if (HasArtificialInBasisWithPositiveValue())
+                solution.AddMessage("Warning: an artificial variable remains basic at a positive value - the original problem is infeasible.");
 
             solution.OptimalValue = GetObjectiveValue();
             solution.VariableValues = GetSolution();
             solution.AddStep("Final Tableau:", ToString());
 
-            // Store final tableau
             solution.FinalTableau = new double[_rows, _cols];
             for (int i = 0; i < _rows; i++)
                 for (int j = 0; j < _cols; j++)
@@ -120,7 +123,6 @@ namespace Group_V_26_LPR381_Project.Algorithms
             solution.AddMessage($"Adding new constraint: {ConstraintToString(constraint)}");
             solution.AddStep("Current Optimal Tableau:", ToString());
 
-            // Use ConstraintHandler to add the constraint
             var result = _constraintHandler.AddConstraint(
                 _matrix,
                 constraint,
@@ -130,13 +132,9 @@ namespace Group_V_26_LPR381_Project.Algorithms
                 _excessCount,
                 _artificialCount);
 
-            // Add all messages from constraint handler
             foreach (var message in result.Messages)
-            {
                 solution.AddMessage(message);
-            }
 
-            // Update internal state
             _matrix = result.NewTableau;
             _rows = _matrix.GetLength(0);
             _cols = _matrix.GetLength(1);
@@ -148,9 +146,8 @@ namespace Group_V_26_LPR381_Project.Algorithms
             solution.SlackCount = _slackCount;
             solution.ExcessCount = _excessCount;
             solution.ArtificialCount = _artificialCount;
-            solution.AddIteration(_matrix, "After adding and fixing constraint");
+            solution.AddIteration(_matrix, "After adding and fixing constraint", -1, -1, GetColumnHeaders());
 
-            // If requires dual simplex, perform it
             if (result.RequiresDualSimplex)
             {
                 solution.AddMessage("Negative RHS detected. Performing dual simplex.");
@@ -171,16 +168,15 @@ namespace Group_V_26_LPR381_Project.Algorithms
                         return solution;
                     }
 
-                    solution.AddMessage($"Dual Phase: Pivoting on row {pivotRow + 1}, column {pivotCol + 1} (RHS = {_matrix[pivotRow, _cols - 1]:F3})");
+                    solution.AddMessage($"Dual Phase: Pivoting on row {pivotRow + 1}, column {pivotCol + 1} (RHS = {NumberFormatter.Format(_matrix[pivotRow, _cols - 1])})");
                     Pivot(pivotRow, pivotCol);
                     solution.AddStep($"Dual Iteration {IterationCount}: Pivot on row {pivotRow + 1}, column {pivotCol + 1}", ToString());
-                    solution.AddIteration((double[,])_matrix.Clone(), $"After Dual Iteration {IterationCount}");
+                    solution.AddIteration((double[,])_matrix.Clone(), $"After Dual Iteration {IterationCount}", pivotRow, pivotCol, GetColumnHeaders());
                 }
 
                 solution.AddMessage("Dual phase complete - all RHS values are non-negative.");
             }
 
-            // Check if further primal simplex is needed for optimality
             while (!IsOptimal())
             {
                 int pivotCol = FindPrimalPivotColumn();
@@ -200,7 +196,7 @@ namespace Group_V_26_LPR381_Project.Algorithms
                 solution.AddMessage($"Primal Phase: Pivoting on row {pivotRow + 1}, column {pivotCol + 1}");
                 Pivot(pivotRow, pivotCol);
                 solution.AddStep($"Primal Iteration {IterationCount}: Pivot on row {pivotRow + 1}, column {pivotCol + 1}", ToString());
-                solution.AddIteration((double[,])_matrix.Clone(), $"After Primal Iteration {IterationCount}");
+                solution.AddIteration((double[,])_matrix.Clone(), $"After Primal Iteration {IterationCount}", pivotRow, pivotCol, GetColumnHeaders());
             }
 
             solution.OptimalValue = GetObjectiveValue();
@@ -224,14 +220,19 @@ namespace Group_V_26_LPR381_Project.Algorithms
             _excessCount = 0;
             _artificialCount = 0;
 
-            // Objective row
+            // Objective row: stored as -coefficient (maximization convention).
+            // For minimization problems the caller's coefficients are expected to already
+            // represent the negated/maximization-equivalent objective.
             for (int j = 0; j < _program.Variables.Count; j++)
             {
                 _matrix[0, j] = _program.IsMaximization ? -_program.Variables[j].Coefficient : _program.Variables[j].Coefficient;
             }
             _matrix[0, _cols - 1] = 0;
 
-            // Constraint rows
+            // Track which row each artificial variable's basic column sits in, so we can
+            // eliminate it from the objective row after the whole tableau is built.
+            var artificialColumns = new List<int>();
+
             int auxIndex = _program.Variables.Count;
             for (int i = 0; i < _program.Constraints.Count; i++)
             {
@@ -250,28 +251,83 @@ namespace Group_V_26_LPR381_Project.Algorithms
                         auxName = $"s{_slackCount}";
                         _matrix[i + 1, auxIndex] = 1;
                         break;
+
                     case Relation.GreaterThanOrEqual:
                         _excessCount++;
                         auxName = $"e{_excessCount}";
-                        // Multiply by -1 for dual simplex
+                        // Multiply the row by -1 so the excess variable's coefficient is +1,
+                        // which pushes the RHS negative and lets Phase 1 dual simplex handle it.
                         for (int j = 0; j < _cols; j++)
                         {
                             _matrix[i + 1, j] *= -1;
                         }
                         _matrix[i + 1, auxIndex] = 1;
                         break;
+
                     case Relation.Equal:
                         _artificialCount++;
                         auxName = $"a{_artificialCount}";
                         _matrix[i + 1, auxIndex] = 1;
-                        _matrix[0, auxIndex] = -1000;
+                        // Raw Big-M penalty placed in the objective row for this column.
+                        // This is NOT yet in canonical form - it must be eliminated below
+                        // so the artificial variable's column reads 0 in row 0 (since it's basic).
+                        _matrix[0, auxIndex] = BIG_M;
+                        artificialColumns.Add(auxIndex);
                         break;
+
                     default:
                         throw new InvalidOperationException("Unsupported relation");
                 }
                 _auxiliaryVariableNames.Add(auxName);
                 auxIndex++;
             }
+
+            // Eliminate each artificial variable's column from the objective row so the
+            // tableau is canonical (objective row = 0 under every basic variable's column).
+            // Since artificial column has a 1 in its own constraint row (row i+1), and BIG_M
+            // in row 0, subtracting BIG_M * row(i+1) zeroes that cell and propagates the
+            // penalty across the rest of the row - the standard Big-M setup step.
+            foreach (int col in artificialColumns)
+            {
+                int basicRow = FindRowWithUnitCoefficient(col);
+                if (basicRow == -1) continue;
+
+                double factor = _matrix[0, col]; // = BIG_M before elimination
+                for (int j = 0; j < _cols; j++)
+                {
+                    _matrix[0, j] -= factor * _matrix[basicRow, j];
+                }
+            }
+        }
+
+        private int FindRowWithUnitCoefficient(int col)
+        {
+            for (int i = 1; i < _rows; i++)
+            {
+                if (Math.Abs(_matrix[i, col] - 1.0) < TOL)
+                    return i;
+            }
+            return -1;
+        }
+
+        private bool HasArtificialInBasisWithPositiveValue()
+        {
+            for (int a = 0; a < _artificialCount; a++)
+            {
+                int col = _program.Variables.Count + _slackCount + _excessCount + a;
+                int row = FindRowWithUnitCoefficient(col);
+                if (row != -1 && _matrix[row, _cols - 1] > TOL)
+                    return true;
+            }
+            return false;
+        }
+
+        private List<string> GetColumnHeaders()
+        {
+            var headers = _program.Variables.Select(v => $"x{v.Index}").ToList();
+            headers.AddRange(_auxiliaryVariableNames);
+            headers.Add("RHS");
+            return headers;
         }
 
         private bool HasNegativeRHS()
@@ -368,13 +424,11 @@ namespace Group_V_26_LPR381_Project.Algorithms
             IterationCount++;
             double pivotElement = _matrix[pivotRow, pivotCol];
 
-            // Normalize pivot row
             for (int j = 0; j < _cols; j++)
             {
                 _matrix[pivotRow, j] /= pivotElement;
             }
 
-            // Eliminate other rows
             for (int i = 0; i < _rows; i++)
             {
                 if (i == pivotRow) continue;
@@ -469,26 +523,18 @@ namespace Group_V_26_LPR381_Project.Algorithms
                 if (coeff != 0)
                 {
                     sb.Append(coeff >= 0 ? "+ " : "- ");
-                    sb.Append($"{Math.Abs(coeff):F3}x{j + 1} ");
+                    sb.Append(NumberFormatter.Format(Math.Abs(coeff))).Append("x").Append(j + 1).Append(" ");
                 }
             }
             string op;
             switch (constraint.Relation)
             {
-                case Relation.LessThanOrEqual:
-                    op = "<= ";
-                    break;
-                case Relation.GreaterThanOrEqual:
-                    op = ">= ";
-                    break;
-                case Relation.Equal:
-                    op = "= ";
-                    break;
-                default:
-                    op = "? ";
-                    break;
+                case Relation.LessThanOrEqual: op = "<= "; break;
+                case Relation.GreaterThanOrEqual: op = ">= "; break;
+                case Relation.Equal: op = "= "; break;
+                default: op = "? "; break;
             }
-            sb.Append($"{op}{constraint.Rhs:F3}");
+            sb.Append(op).Append(NumberFormatter.Format(constraint.Rhs));
             return sb.ToString().TrimStart();
         }
 
@@ -503,9 +549,7 @@ namespace Group_V_26_LPR381_Project.Algorithms
                 sb.Append($"{"x" + _program.Variables[j].Index,-10}");
 
             foreach (var auxVarName in _auxiliaryVariableNames)
-            {
                 sb.Append($"{auxVarName,-10}");
-            }
 
             sb.AppendLine("RHS");
 
@@ -518,11 +562,7 @@ namespace Group_V_26_LPR381_Project.Algorithms
 
                 for (int j = 0; j < _cols; j++)
                 {
-                    double value = _matrix[i, j];
-                    if (Math.Abs(value) < TOL)
-                        value = 0;
-
-                    sb.Append($"{value,10:F3}");
+                    sb.Append($"{NumberFormatter.Format(_matrix[i, j]),10}");
                 }
                 sb.AppendLine();
             }
@@ -533,7 +573,6 @@ namespace Group_V_26_LPR381_Project.Algorithms
         public DualSimplex Clone()
         {
             var cloned = new DualSimplex();
-            // Copy all internal state:
             cloned._matrix = (double[,])this._matrix.Clone();
             cloned._rows = this._rows;
             cloned._cols = this._cols;
@@ -541,7 +580,7 @@ namespace Group_V_26_LPR381_Project.Algorithms
             cloned._excessCount = this._excessCount;
             cloned._artificialCount = this._artificialCount;
             cloned._auxiliaryVariableNames = new List<string>(this._auxiliaryVariableNames);
-            cloned._program = this._program; // or clone this too
+            cloned._program = this._program;
             return cloned;
         }
     }
