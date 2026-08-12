@@ -25,7 +25,6 @@ namespace LinearProgrammingSolver.Algorithms
             // Step 1: Solve the LP relaxation using dual simplex
             var initialSolution = _dualSimplex.Solve(program);
 
-            // Check if the initial solution is infeasible or unbounded
             if (initialSolution.Messages.Any(m => m.Contains("infeasible") || m.Contains("unbounded")))
             {
                 solution.AddMessage("Initial LP relaxation is infeasible or unbounded. Cannot proceed with Cutting Plane.");
@@ -34,9 +33,8 @@ namespace LinearProgrammingSolver.Algorithms
                 return solution;
             }
 
-            // Add initial solution steps to main solution
-            foreach (var step in initialSolution.Steps)
-                solution.Steps.Add(step);
+            // Forward the real tableau iterations (with pivot info) instead of copying plain text
+            CopySimplexIterations(solution, initialSolution, "LP Relaxation");
 
             int cutIteration = 0;
             var currentProgram = program.Clone();
@@ -44,22 +42,20 @@ namespace LinearProgrammingSolver.Algorithms
 
             while (true)
             {
-                // Step 2: Find the basic variable with fractional value closest to 0.5
                 var fractionalVar = FindMostFractionalVariable(currentSolution, currentProgram);
 
                 if (fractionalVar == null)
                 {
-                    // All integer solution found
                     solution.OptimalValue = currentSolution.OptimalValue;
                     solution.VariableValues = currentSolution.VariableValues;
-                    solution.AddMessage($"\nOptimal integer solution found with value: {currentSolution.OptimalValue:F3}");
+                    solution.AddMessage($"\nOptimal integer solution found with value: {NumberFormatter.Format(currentSolution.OptimalValue)}");
                     break;
                 }
 
                 cutIteration++;
-                solution.AddMessage($"\nCut {cutIteration}: Variable {fractionalVar.Item1} = {fractionalVar.Item2:F3} is fractional (distance from 0.5: {Math.Abs(fractionalVar.Item2 - Math.Floor(fractionalVar.Item2) - 0.5):F3})");
+                solution.AddMessage($"\nCut {cutIteration}: Variable {fractionalVar.Item1} = {NumberFormatter.Format(fractionalVar.Item2)} is fractional " +
+                    $"(distance from 0.5: {NumberFormatter.Format(Math.Abs(fractionalVar.Item2 - Math.Floor(fractionalVar.Item2) - 0.5))})");
 
-                // Step 3: Generate Gomory cut from the constraint row
                 var cut = GenerateGomoryCut(currentSolution, fractionalVar.Item1, currentProgram);
                 if (cut == null)
                 {
@@ -68,10 +64,8 @@ namespace LinearProgrammingSolver.Algorithms
                 }
                 solution.AddStep($"Cut {cutIteration} Generation", cut.GenerationSteps);
 
-                // Add the cut to the program
                 currentProgram.Constraints.Add(cut.Constraint);
 
-                // Add new slack variable for the cut
                 var slackVar = new LinearProgram.Variable
                 {
                     Index = currentProgram.Variables.Count + 1,
@@ -80,7 +74,6 @@ namespace LinearProgrammingSolver.Algorithms
                 };
                 currentProgram.Variables.Add(slackVar);
 
-                // Ensure all constraints have correct coefficient count
                 foreach (var constraint in currentProgram.Constraints)
                 {
                     while (constraint.Coefficients.Count < currentProgram.Variables.Count)
@@ -89,7 +82,6 @@ namespace LinearProgrammingSolver.Algorithms
                     }
                 }
 
-                // Set slack variable coefficient in the new cut constraint
                 cut.Constraint.Coefficients[currentProgram.Variables.Count - 1] = 1;
 
                 solution.AddMessage($"Added cut: {FormatConstraint(cut.Constraint, currentProgram.Variables.Count - 1)}");
@@ -112,13 +104,10 @@ namespace LinearProgrammingSolver.Algorithms
                     return solution;
                 }
 
-                // Add solution steps
-                foreach (var step in currentSolution.Steps)
-                    solution.Steps.Add(step);
+                CopySimplexIterations(solution, currentSolution, $"After Cut {cutIteration}");
 
-                solution.AddMessage($"Cut {cutIteration} result: Optimal value = {currentSolution.OptimalValue:F3}");
+                solution.AddMessage($"Cut {cutIteration} result: Optimal value = {NumberFormatter.Format(currentSolution.OptimalValue)}");
 
-                // Prevent infinite loops
                 if (cutIteration >= 50)
                 {
                     solution.AddMessage("Maximum number of cuts reached. Terminating.");
@@ -129,6 +118,26 @@ namespace LinearProgrammingSolver.Algorithms
             return solution;
         }
 
+        /// <summary>
+        /// Copies a DualSimplex sub-solve's tableau iterations (matrix, pivot row/col, column
+        /// headers) into the outer solution so the UI can render and highlight them.
+        /// </summary>
+        private void CopySimplexIterations(Solution target, Solution source, string labelPrefix)
+        {
+            for (int i = 0; i < source.IterationTableaux.Count; i++)
+            {
+                var headers = i < source.IterationColumnHeaders.Count ? source.IterationColumnHeaders[i] : null;
+                var pivotRow = i < source.IterationPivotRows.Count ? source.IterationPivotRows[i] : -1;
+                var pivotCol = i < source.IterationPivotCols.Count ? source.IterationPivotCols[i] : -1;
+
+                string label = string.IsNullOrEmpty(labelPrefix)
+                    ? source.IterationMessages[i]
+                    : $"{labelPrefix} - {source.IterationMessages[i]}";
+
+                target.AddIteration(source.IterationTableaux[i], label, pivotRow, pivotCol, headers);
+            }
+        }
+
         private Tuple<string, double> FindMostFractionalVariable(Solution solution, LinearProgram program)
         {
             string mostFractionalVar = null;
@@ -136,7 +145,6 @@ namespace LinearProgrammingSolver.Algorithms
             double closestToHalf = double.MaxValue;
             int lowestVarIndex = int.MaxValue;
 
-            // Only consider decision variables (x1, x2, etc.)
             var decisionVars = solution.VariableValues
                 .Where(kvp => kvp.Key.StartsWith("x"))
                 .OrderBy(kvp => GetVariableIndex(kvp.Key))
@@ -149,7 +157,6 @@ namespace LinearProgrammingSolver.Algorithms
                 {
                     double distanceFromHalf = Math.Abs(fractionalPart - 0.5);
                     int varIndex = GetVariableIndex(kvp.Key);
-                    // Choose variable closest to 0.5, if tied then choose lowest index
                     if (distanceFromHalf < closestToHalf ||
                         (Math.Abs(distanceFromHalf - closestToHalf) < TOLERANCE && varIndex < lowestVarIndex))
                     {
@@ -166,7 +173,6 @@ namespace LinearProgrammingSolver.Algorithms
 
         private int GetVariableIndex(string varName)
         {
-            // Extract index from variable name (e.g., "x1" -> 1, "x2" -> 2)
             return int.Parse(varName.Substring(1));
         }
 
@@ -175,7 +181,6 @@ namespace LinearProgrammingSolver.Algorithms
             var cutInfo = new CutInfo();
             var sb = new StringBuilder();
 
-            // Find the tableau row corresponding to the fractional variable
             if (solution.FinalTableau == null)
             {
                 sb.AppendLine("Final tableau not available for cut generation.");
@@ -183,7 +188,7 @@ namespace LinearProgrammingSolver.Algorithms
                 return null;
             }
 
-            int varIndex = GetVariableIndex(fractionalVarName) - 1; // Convert to 0-based
+            int varIndex = GetVariableIndex(fractionalVarName) - 1;
             int pivotRow = FindBasicVariableRow(solution.FinalTableau, varIndex);
             if (pivotRow == -1)
             {
@@ -195,30 +200,28 @@ namespace LinearProgrammingSolver.Algorithms
             sb.AppendLine($"Generating Gomory cut from row {pivotRow + 1} (basic variable {fractionalVarName}):");
             sb.AppendLine();
 
-            // Step 3: Extract the constraint equation from the tableau row
             var tableau = solution.FinalTableau;
             int cols = tableau.GetLength(1);
             double rhs = tableau[pivotRow, cols - 1];
 
             sb.AppendLine("Step 1: Extract constraint equation from tableau:");
-            sb.Append($"{fractionalVarName} = {rhs:F3}");
+            sb.Append($"{fractionalVarName} = {NumberFormatter.Format(rhs)}");
 
             var coefficients = new List<double>();
             var variableNames = GetVariableNames(program, solution);
 
-            // Get ALL variable coefficients from the tableau row (basic variable has coefficient 1, others have their tableau values)
             for (int j = 0; j < cols - 1; j++)
             {
                 double coeff = tableau[pivotRow, j];
                 coefficients.Add(coeff);
-                if (j < variableNames.Count && j != varIndex) // Don't show the basic variable itself
+                if (j < variableNames.Count && j != varIndex)
                 {
                     if (Math.Abs(coeff) > TOLERANCE)
                     {
                         if (coeff > 0)
-                            sb.Append($" + {coeff:F3}{variableNames[j]}");
+                            sb.Append($" + {NumberFormatter.Format(coeff)}{variableNames[j]}");
                         else
-                            sb.Append($" - {Math.Abs(coeff):F3}{variableNames[j]}");
+                            sb.Append($" - {NumberFormatter.Format(Math.Abs(coeff))}{variableNames[j]}");
                     }
                 }
             }
@@ -226,31 +229,26 @@ namespace LinearProgrammingSolver.Algorithms
             sb.AppendLine();
             sb.AppendLine();
 
-            // Step 4 & 5: Split integer and fractional parts, ensuring positive fractions
             sb.AppendLine("Step 2: Split into integer and fractional parts (ensuring positive fractions):");
 
             var integerParts = new List<double>();
             var fractionalParts = new List<double>();
 
-            // Process RHS
             double rhsInteger = Math.Floor(rhs);
             double rhsFractional = rhs - rhsInteger;
 
-            // If RHS fractional part is negative, adjust
             if (rhsFractional < 0)
             {
                 rhsInteger -= 1;
                 rhsFractional = rhs - rhsInteger;
             }
 
-            sb.AppendLine($"RHS: {rhs:F3} = {rhsInteger:F0} + {rhsFractional:F3}");
+            sb.AppendLine($"RHS: {NumberFormatter.Format(rhs)} = {NumberFormatter.Format(rhsInteger)} + {NumberFormatter.Format(rhsFractional)}");
 
-            // Process ALL coefficients (including basic variable which should be 0 for cut generation)
             for (int j = 0; j < cols - 1; j++)
             {
                 double coeff = tableau[pivotRow, j];
 
-                // For the basic variable (current fractional variable), coefficient should be treated as 0 for cut
                 if (j == varIndex)
                 {
                     integerParts.Add(0);
@@ -260,7 +258,6 @@ namespace LinearProgrammingSolver.Algorithms
                 {
                     double intPart = Math.Floor(coeff);
                     double fracPart = coeff - intPart;
-                    // Ensure fractional part is positive
                     if (fracPart < 0)
                     {
                         intPart -= 1;
@@ -270,36 +267,33 @@ namespace LinearProgrammingSolver.Algorithms
                     fractionalParts.Add(fracPart);
                     if (j < variableNames.Count && Math.Abs(coeff) > TOLERANCE)
                     {
-                        sb.AppendLine($"{variableNames[j]}: {coeff:F3} = {intPart:F0} + {fracPart:F3}");
+                        sb.AppendLine($"{variableNames[j]}: {NumberFormatter.Format(coeff)} = {NumberFormatter.Format(intPart)} + {NumberFormatter.Format(fracPart)}");
                     }
                 }
             }
 
             sb.AppendLine();
 
-            // Step 6: Rearrange equation
             sb.AppendLine("Step 3: Rearrange - move integers to left, fractions to right:");
             sb.Append($"{fractionalVarName}");
 
-            // Add integer parts to left side (with opposite sign)
             for (int j = 0; j < Math.Min(integerParts.Count, variableNames.Count); j++)
             {
                 if (Math.Abs(integerParts[j]) > TOLERANCE && !IsBasicVariable(tableau, j))
                 {
-                    sb.Append($" - ({integerParts[j]:F0}){variableNames[j]}");
+                    sb.Append($" - ({NumberFormatter.Format(integerParts[j])}){variableNames[j]}");
                 }
             }
 
-            sb.Append($" - ({rhsInteger:F0}) = ");
+            sb.Append($" - ({NumberFormatter.Format(rhsInteger)}) = ");
 
-            // Add fractional parts to right side (with opposite sign)
             bool first = true;
             for (int j = 0; j < Math.Min(fractionalParts.Count, variableNames.Count); j++)
             {
                 if (Math.Abs(fractionalParts[j]) > TOLERANCE && !IsBasicVariable(tableau, j))
                 {
                     if (!first) sb.Append(" + ");
-                    sb.Append($"{fractionalParts[j]:F3}{variableNames[j]}");
+                    sb.Append($"{NumberFormatter.Format(fractionalParts[j])}{variableNames[j]}");
                     first = false;
                 }
             }
@@ -307,14 +301,12 @@ namespace LinearProgrammingSolver.Algorithms
             if (!first) sb.Append(" - ");
             else sb.Append("-");
 
-            sb.AppendLine($"{rhsFractional:F3}");
+            sb.AppendLine($"{NumberFormatter.Format(rhsFractional)}");
             sb.AppendLine();
 
-            // Step 7: Create the cut constraint
-            sb.AppendLine("Step 4: Generate cut constraint (fractional part ≤ 0):");
+            sb.AppendLine("Step 4: Generate cut constraint (fractional part <= 0):");
             var cutConstraint = new LinearProgram.Constraint();
 
-            // Fix: Initialize coefficients for all variables including slack variables
             int totalVars = Math.Max(program.Variables.Count, fractionalParts.Count);
             for (int i = 0; i < totalVars; i++)
             {
@@ -324,7 +316,6 @@ namespace LinearProgrammingSolver.Algorithms
             sb.Append("Cut: ");
             bool firstTerm = true;
 
-            // Set fractional parts for all variables including slack variables
             for (int j = 0; j < fractionalParts.Count; j++)
             {
                 if (Math.Abs(fractionalParts[j]) > TOLERANCE)
@@ -332,7 +323,7 @@ namespace LinearProgrammingSolver.Algorithms
                     if (!firstTerm && fractionalParts[j] > 0) sb.Append(" + ");
                     if (fractionalParts[j] < 0) sb.Append(" - ");
                     else if (!firstTerm) sb.Append(" + ");
-                    sb.Append($"{Math.Abs(fractionalParts[j]):F3}{variableNames[j]}");
+                    sb.Append($"{NumberFormatter.Format(Math.Abs(fractionalParts[j]))}{variableNames[j]}");
                     if (j < cutConstraint.Coefficients.Count)
                     {
                         cutConstraint.Coefficients[j] = fractionalParts[j];
@@ -341,7 +332,7 @@ namespace LinearProgrammingSolver.Algorithms
                 }
             }
 
-            sb.AppendLine($" ≤ {-rhsFractional:F3}");
+            sb.AppendLine($" <= {NumberFormatter.Format(-rhsFractional)}");
             sb.AppendLine();
             sb.AppendLine("In canonical form with slack variable:");
             sb.Append("Cut: ");
@@ -354,14 +345,14 @@ namespace LinearProgrammingSolver.Algorithms
                     if (!firstTerm && fractionalParts[j] > 0) sb.Append(" + ");
                     if (fractionalParts[j] < 0) sb.Append(" - ");
                     else if (!firstTerm) sb.Append(" + ");
-                    sb.Append($"{Math.Abs(fractionalParts[j]):F3}{variableNames[j]}");
+                    sb.Append($"{NumberFormatter.Format(Math.Abs(fractionalParts[j]))}{variableNames[j]}");
                     firstTerm = false;
                 }
             }
 
-            sb.AppendLine($" + s{program.Variables.Count + 1} = {-rhsFractional:F3}");
+            sb.AppendLine($" + s{program.Variables.Count + 1} = {NumberFormatter.Format(-rhsFractional)}");
 
-            cutConstraint.Relation = LinearProgram.Relation.Equal; // Changed to Equal since we're adding slack
+            cutConstraint.Relation = LinearProgram.Relation.Equal;
             cutConstraint.Rhs = -rhsFractional;
 
             cutInfo.Constraint = cutConstraint;
@@ -374,37 +365,25 @@ namespace LinearProgrammingSolver.Algorithms
         {
             var names = new List<string>();
 
-            // Decision variables
             for (int i = 0; i < program.Variables.Count; i++)
-            {
                 names.Add($"x{i + 1}");
-            }
-            // Slack variables
             for (int i = 0; i < solution.SlackCount; i++)
-            {
                 names.Add($"s{i + 1}");
-            }
-            // Excess variables
             for (int i = 0; i < solution.ExcessCount; i++)
-            {
                 names.Add($"e{i + 1}");
-            }
-            // Artificial variables
             for (int i = 0; i < solution.ArtificialCount; i++)
-            {
                 names.Add($"a{i + 1}");
-            }
+
             return names;
         }
 
         private int FindBasicVariableRow(double[,] tableau, int varColumn)
         {
             int rows = tableau.GetLength(0);
-            for (int i = 1; i < rows; i++) // Start from 1 to skip objective row
+            for (int i = 1; i < rows; i++)
             {
                 if (Math.Abs(tableau[i, varColumn] - 1.0) < TOLERANCE)
                 {
-                    // Check if this is the only non-zero entry in the column
                     bool isBasic = true;
                     for (int k = 0; k < rows; k++)
                     {
@@ -430,7 +409,7 @@ namespace LinearProgrammingSolver.Algorithms
                 if (Math.Abs(tableau[i, column] - 1.0) < TOLERANCE)
                     onesCount++;
                 else if (Math.Abs(tableau[i, column]) > TOLERANCE)
-                    return false; // Non-zero, non-one entry found
+                    return false;
             }
             return onesCount == 1;
         }
@@ -439,7 +418,7 @@ namespace LinearProgrammingSolver.Algorithms
         {
             var sb = new StringBuilder();
             bool first = true;
-            for (int i = 0; i < constraint.Coefficients.Count - 1; i++) // -1 to exclude the slack variable we just added
+            for (int i = 0; i < constraint.Coefficients.Count - 1; i++)
             {
                 double coeff = constraint.Coefficients[i];
                 if (Math.Abs(coeff) > TOLERANCE)
@@ -447,11 +426,11 @@ namespace LinearProgrammingSolver.Algorithms
                     if (!first && coeff > 0) sb.Append(" + ");
                     if (coeff < 0) sb.Append(" - ");
                     else if (!first) sb.Append(" + ");
-                    sb.Append($"{Math.Abs(coeff):F3}x{i + 1}");
+                    sb.Append($"{NumberFormatter.Format(Math.Abs(coeff))}x{i + 1}");
                     first = false;
                 }
             }
-            sb.Append($" + s{slackVarIndex} = {constraint.Rhs:F3}");
+            sb.Append($" + s{slackVarIndex} = {NumberFormatter.Format(constraint.Rhs)}");
             return sb.ToString();
         }
 
@@ -460,25 +439,22 @@ namespace LinearProgrammingSolver.Algorithms
             var sb = new StringBuilder();
             sb.AppendLine("Canonical Form (with slack variables):");
 
-            // Objective function in canonical form: z - c1*x1 - c2*x2 - ... = 0
             sb.Append("z");
             for (int i = 0; i < program.Variables.Count; i++)
             {
                 double coeff = program.IsMaximization ? -program.Variables[i].Coefficient : program.Variables[i].Coefficient;
                 if (coeff >= 0)
-                    sb.Append($" + {coeff:F0}x{i + 1}");
+                    sb.Append($" + {NumberFormatter.Format(coeff)}x{i + 1}");
                 else
-                    sb.Append($" - {Math.Abs(coeff):F0}x{i + 1}");
+                    sb.Append($" - {NumberFormatter.Format(Math.Abs(coeff))}x{i + 1}");
             }
             sb.AppendLine(" = 0");
             sb.AppendLine();
 
-            // Constraints in canonical form with slack variables
             int slackIndex = 1;
             for (int i = 0; i < program.Constraints.Count; i++)
             {
                 var constraint = program.Constraints[i];
-                // Decision variables
                 bool first = true;
                 for (int j = 0; j < constraint.Coefficients.Count && j < program.Variables.Count; j++)
                 {
@@ -486,18 +462,17 @@ namespace LinearProgrammingSolver.Algorithms
                     if (Math.Abs(coeff) < TOLERANCE) continue;
                     if (first)
                     {
-                        sb.Append($"{coeff:F0}x{j + 1}");
+                        sb.Append($"{NumberFormatter.Format(coeff)}x{j + 1}");
                         first = false;
                     }
                     else
                     {
                         if (coeff >= 0)
-                            sb.Append($" + {coeff:F0}x{j + 1}");
+                            sb.Append($" + {NumberFormatter.Format(coeff)}x{j + 1}");
                         else
-                            sb.Append($" - {Math.Abs(coeff):F0}x{j + 1}");
+                            sb.Append($" - {NumberFormatter.Format(Math.Abs(coeff))}x{j + 1}");
                     }
                 }
-                // Add slack/surplus variable based on constraint type
                 if (constraint.Relation == LinearProgram.Relation.LessThanOrEqual)
                 {
                     sb.Append($" + s{slackIndex}");
@@ -508,7 +483,7 @@ namespace LinearProgrammingSolver.Algorithms
                     sb.Append($" - s{slackIndex}");
                     slackIndex++;
                 }
-                sb.AppendLine($" = {constraint.Rhs:F0}");
+                sb.AppendLine($" = {NumberFormatter.Format(constraint.Rhs)}");
             }
 
             sb.AppendLine();

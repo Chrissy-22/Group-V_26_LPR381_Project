@@ -2,31 +2,54 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace Group_V_26_LPR381_Project.Models
 {
     public class Solution
     {
+        public enum OutputBlockType { Text, Tableau, GroupHeader }
+
+        /// <summary>A single piece of output in the order it was produced.</summary>
+        public class OutputBlock
+        {
+            public OutputBlockType Type { get; set; }
+            public string Title { get; set; }
+            public string Text { get; set; }
+            public double[,] Tableau { get; set; }
+            public List<string> ColumnHeaders { get; set; }
+            public int PivotRow { get; set; } = -1;
+            public int PivotCol { get; set; } = -1;
+            public int IndentLevel { get; set; }
+        }
+
         public double OptimalValue { get; set; }
         public Dictionary<string, double> VariableValues { get; set; } = new Dictionary<string, double>();
         public List<string> Steps { get; } = new List<string>();
         public List<string> Messages { get; } = new List<string>();
+
         public List<double[,]> IterationTableaux { get; set; } = new List<double[,]>();
         public List<string> IterationMessages { get; set; } = new List<string>();
-        public double[,] FinalTableau { get; set; } // New property to store the final tableau matrix
-        public int VariableCount { get; set; } // To track number of decision variables
-        public int SlackCount { get; set; } // To track number of slack variables
-        public int ExcessCount { get; set; } // To track number of excess variables
-        public int ArtificialCount { get; set; } // To track number of artificial variables
+        public List<int> IterationPivotRows { get; set; } = new List<int>();
+        public List<int> IterationPivotCols { get; set; } = new List<int>();
+        public List<List<string>> IterationColumnHeaders { get; set; } = new List<List<string>>();
+
+        /// <summary>
+        /// All output in the order it was produced (text, tableaux, and group headers
+        /// interleaved). Rendering from this list - instead of showing all Messages, then
+        /// all tables, then Steps only as a fallback - is what lets Branch and Bound's
+        /// per-sub-problem commentary appear right next to the table it describes.
+        /// </summary>
+        public List<OutputBlock> OutputBlocks { get; } = new List<OutputBlock>();
+
+        public double[,] FinalTableau { get; set; }
+        public int VariableCount { get; set; }
+        public int SlackCount { get; set; }
+        public int ExcessCount { get; set; }
+        public int ArtificialCount { get; set; }
 
         public Solution()
         {
             VariableValues = new Dictionary<string, double>();
-            Steps = new List<string>();
-            Messages = new List<string>();
-            IterationTableaux = new List<double[,]>();
-            IterationMessages = new List<string>();
             OptimalValue = 0;
             FinalTableau = null;
             VariableCount = 0;
@@ -38,37 +61,57 @@ namespace Group_V_26_LPR381_Project.Models
         public void AddStep(string title, string content)
         {
             Steps.Add(string.Concat(title, "\n", content));
-
+            OutputBlocks.Add(new OutputBlock { Type = OutputBlockType.Text, Title = title, Text = content });
         }
 
         public void AddMessage(string message)
         {
             Messages.Add(message);
+            OutputBlocks.Add(new OutputBlock { Type = OutputBlockType.Text, Text = message });
         }
 
-        public void AddIteration(double[,] tableau, string message = null)
+        /// <summary>Adds a titled text block (e.g. Branch and Bound's per-sub-problem
+        /// "Solution:" variable listing) without also recording it in Messages.</summary>
+        public void AddTextBlock(string content, string title = null)
         {
+            OutputBlocks.Add(new OutputBlock { Type = OutputBlockType.Text, Title = title, Text = content });
+        }
+
+        /// <summary>Adds a visually distinct section header, e.g. to group each Branch and
+        /// Bound sub-problem. indentLevel roughly corresponds to branching depth.</summary>
+        public void AddGroupHeader(string title, int indentLevel = 0)
+        {
+            OutputBlocks.Add(new OutputBlock { Type = OutputBlockType.GroupHeader, Title = title, IndentLevel = indentLevel });
+        }
+
+        /// <summary>
+        /// Records a tableau snapshot for display.
+        /// </summary>
+        /// <param name="tableau">The tableau matrix at this point in the solve.</param>
+        /// <param name="message">Label for this iteration (e.g. "After Dual Iteration 2").</param>
+        /// <param name="pivotRow">Row index that was just pivoted on, or -1 if none (e.g. initial tableau).</param>
+        /// <param name="pivotCol">Column index that was just pivoted on, or -1 if none.</param>
+        /// <param name="columnHeaders">Column names (x1, x2, ..., s1, e1, a1, ..., RHS) for this snapshot.</param>
+        public void AddIteration(double[,] tableau, string message = null, int pivotRow = -1, int pivotCol = -1, List<string> columnHeaders = null)
+        {
+            string label = string.IsNullOrEmpty(message) ? $"Iteration {IterationTableaux.Count + 1}" : message;
+
             IterationTableaux.Add((double[,])tableau.Clone());
-            if (!string.IsNullOrEmpty(message))
-                IterationMessages.Add(message);
-            else
-                IterationMessages.Add($"Iteration {IterationTableaux.Count}");
-        }
+            IterationMessages.Add(label);
+            IterationPivotRows.Add(pivotRow);
+            IterationPivotCols.Add(pivotCol);
+            IterationColumnHeaders.Add(columnHeaders);
 
-        /*public override string ToString()
-        {
-            var result = string.Join("\n\n", Steps) + "\n\n";
-            result += string.Join("\n", Messages) + "\n\n";
-            result += "Optimal Solution:\n";
-
-            foreach (var kvp in VariableValues)
+            OutputBlocks.Add(new OutputBlock
             {
-                result += string.Format("{0} = {1:F3}\n", kvp.Key, kvp.Value);
-            }
-
-            result += string.Format("\nOptimal Value: {0:F3}", OptimalValue);
-            return result;
-        }*/
+                Type = OutputBlockType.Tableau,
+                Title = label,
+                Tableau = (double[,])tableau.Clone(),
+                ColumnHeaders = columnHeaders,
+                PivotRow = pivotRow,
+                PivotCol = pivotCol
+            });
+        }
 
         public override string ToString()
         {
@@ -97,9 +140,9 @@ namespace Group_V_26_LPR381_Project.Models
             {
                 foreach (var kvp in VariableValues.OrderBy(kvp => kvp.Key))
                 {
-                    result.AppendLine($"{kvp.Key} = {kvp.Value:F3}");
+                    result.AppendLine($"{kvp.Key} = {NumberFormatter.Format(kvp.Value)}");
                 }
-                result.AppendLine($"\nOptimal Value: {OptimalValue:F3}");
+                result.AppendLine($"\nOptimal Value: {NumberFormatter.Format(OptimalValue)}");
             }
             else
             {
@@ -118,7 +161,7 @@ namespace Group_V_26_LPR381_Project.Models
             {
                 for (int j = 0; j < cols; j++)
                 {
-                    sb.Append($"{tableau[i, j]:F3}\t");
+                    sb.Append(NumberFormatter.Format(tableau[i, j])).Append('\t');
                 }
                 sb.AppendLine();
             }

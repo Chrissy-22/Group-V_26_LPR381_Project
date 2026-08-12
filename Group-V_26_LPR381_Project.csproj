@@ -54,7 +54,9 @@
     <Compile Include="Algorithms\Knapsack.cs" />
     <Compile Include="Algorithms\PrimalSimplex.cs" />
     <Compile Include="Algorithms\RevisedPrimalSimplex.cs" />
+    <Compile Include="Algorithms\SensitivityAnalysis.cs" />
     <Compile Include="Models\LinearProgram.cs" />
+    <Compile Include="Models\NumberFormatter.cs" />
     <Compile Include="Models\Solution.cs" />
     <Compile Include="Presentation Layer\frmMainForm.cs">
       <SubType>Form</SubType>
@@ -62,6 +64,7 @@
     <Compile Include="Presentation Layer\frmMainForm.Designer.cs">
       <DependentUpon>frmMainForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="Presentation Layer\TableauRenderer.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <EmbeddedResource Include="Presentation Layer\frmMainForm.resx">

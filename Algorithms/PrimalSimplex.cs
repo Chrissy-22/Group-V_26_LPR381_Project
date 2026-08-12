@@ -1,9 +1,7 @@
 ﻿using Group_V_26_LPR381_Project.Models;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace Group_V_26_LPR381_Project.Algorithms
 {
@@ -20,6 +18,7 @@ namespace Group_V_26_LPR381_Project.Algorithms
             }
 
             solution.AddStep("Initial Tableau:", tableau.ToString());
+            solution.AddIteration(tableau.GetMatrix(), "Initial Tableau", -1, -1, tableau.GetColumnHeaders());
 
             while (!tableau.IsOptimal())
             {
@@ -39,6 +38,8 @@ namespace Group_V_26_LPR381_Project.Algorithms
 
                 tableau.Pivot(pivotRow, pivotCol);
                 solution.AddStep($"Iteration {tableau.IterationCount}: Pivot on row {pivotRow}, column {pivotCol}", tableau.ToString());
+                solution.AddIteration(tableau.GetMatrix(), $"Iteration {tableau.IterationCount}: Pivot on row {pivotRow}, column {pivotCol}",
+                    pivotRow, pivotCol, tableau.GetColumnHeaders());
             }
 
             solution.OptimalValue = tableau.GetObjectiveValue();
@@ -89,7 +90,24 @@ namespace Group_V_26_LPR381_Project.Algorithms
 
                 _matrix[i, _cols - 1] = constraint.Rhs;
             }
+        }
 
+        /// <summary>A cloned snapshot of the current matrix, safe to store without aliasing.</summary>
+        public double[,] GetMatrix() => (double[,])_matrix.Clone();
+
+        /// <summary>Column headers (x1..xn, s1..sm, RHS) matching the matrix's column order.</summary>
+        public List<string> GetColumnHeaders()
+        {
+            var headers = new List<string>();
+            for (int j = 0; j < _program.Variables.Count; j++)
+                headers.Add($"x{_program.Variables[j].Index}");
+
+            int slackCount = _cols - _program.Variables.Count - 1;
+            for (int j = 0; j < slackCount; j++)
+                headers.Add($"s{j + 1}");
+
+            headers.Add("RHS");
+            return headers;
         }
 
         public bool IsOptimal()
@@ -216,7 +234,7 @@ namespace Group_V_26_LPR381_Project.Algorithms
             {
                 sb.Append(i == 0 ? "Obj:  " : $"Con{i}: ");
                 for (int j = 0; j < _cols; j++)
-                    sb.Append($"{_matrix[i, j],8:F3}");
+                    sb.Append($"{NumberFormatter.Format(_matrix[i, j]),8}");
                 sb.AppendLine();
             }
 

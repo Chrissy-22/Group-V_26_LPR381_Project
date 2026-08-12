@@ -2,8 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
-using static Group_V_26_LPR381_Project.Models.LinearProgram;
 
 namespace Group_V_26_LPR381_Project.Models
 {
@@ -115,9 +113,6 @@ namespace Group_V_26_LPR381_Project.Models
                     continue; // don't add to normal LP constraints
                 }
 
-                if (parts.Length < program.Variables.Count * 2 + 2)
-                    throw new ArgumentException("Constraint line has insufficient values: " + line);
-
                 Constraint constraint = new Constraint();
 
                 for (int i = 0; i < program.Variables.Count; i++)
@@ -163,7 +158,6 @@ namespace Group_V_26_LPR381_Project.Models
             }
         }
 
-
         private static void ParseSignRestrictions(string line, LinearProgram program)
         {
             string[] parts = line.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
@@ -187,33 +181,37 @@ namespace Group_V_26_LPR381_Project.Models
 
         public override string ToString()
         {
-            string result = (IsMaximization ? "Maximize" : "Minimize") + ":\n  ";
+            var result = new StringBuilder();
+            result.Append(IsMaximization ? "Maximize" : "Minimize").Append(":\n  ");
+
             for (int i = 0; i < Variables.Count; i++)
             {
-                if (i > 0) result += " + ";
-                result += (Variables[i].Coefficient >= 0
-                    ? Variables[i].Coefficient.ToString("F3")
-                    : "(" + Variables[i].Coefficient.ToString("F3") + ")")
-                    + "x" + Variables[i].Index;
+                if (i > 0) result.Append(" + ");
+                string coeffStr = Variables[i].Coefficient >= 0
+                    ? NumberFormatter.Format(Variables[i].Coefficient)
+                    : "(" + NumberFormatter.Format(Variables[i].Coefficient) + ")";
+                result.Append(coeffStr).Append("x").Append(Variables[i].Index);
             }
 
-            result += "\n\nSubject to:\n";
+            result.Append("\n\nSubject to:\n");
 
             // Normal LP constraints
             for (int i = 0; i < Constraints.Count; i++)
             {
-                result += "  ";
+                result.Append("  ");
                 for (int j = 0; j < Variables.Count; j++)
-                    result += (Constraints[i].Coefficients[j] >= 0 ? "+ " : "- ")
-                        + Math.Abs(Constraints[i].Coefficients[j]).ToString("F3")
-                        + "x" + Variables[j].Index + " ";
+                {
+                    result.Append(Constraints[i].Coefficients[j] >= 0 ? "+ " : "- ")
+                          .Append(NumberFormatter.Format(Math.Abs(Constraints[i].Coefficients[j])))
+                          .Append("x").Append(Variables[j].Index).Append(" ");
+                }
 
                 string op = "? ";
                 if (Constraints[i].Relation == Relation.LessThanOrEqual) op = "<= ";
                 if (Constraints[i].Relation == Relation.GreaterThanOrEqual) op = ">= ";
                 if (Constraints[i].Relation == Relation.Equal) op = "= ";
 
-                result += op + Constraints[i].Rhs.ToString("F3") + "\n";
+                result.Append(op).Append(NumberFormatter.Format(Constraints[i].Rhs)).Append("\n");
             }
 
             // Knapsack constraints
@@ -221,25 +219,25 @@ namespace Group_V_26_LPR381_Project.Models
             {
                 foreach (var wc in WeightConstraints)
                 {
-                    result += "  weight: ";
+                    result.Append("  weight: ");
                     for (int j = 0; j < wc.Coefficients.Count; j++)
                     {
-                        result += (wc.Coefficients[j] >= 0 ? "+ " : "- ")
-                            + Math.Abs(wc.Coefficients[j]).ToString("F3")
-                            + "x" + (j + 1) + " ";
+                        result.Append(wc.Coefficients[j] >= 0 ? "+ " : "- ")
+                              .Append(NumberFormatter.Format(Math.Abs(wc.Coefficients[j])))
+                              .Append("x").Append(j + 1).Append(" ");
                     }
-                    result += "<= " + wc.Capacity.ToString("F3") + "\n";
+                    result.Append("<= ").Append(NumberFormatter.Format(wc.Capacity)).Append("\n");
                 }
             }
 
-            result += "\nWith:\n";
+            result.Append("\nWith:\n");
             for (int i = 0; i < Variables.Count; i++)
             {
-                if (i > 0) result += ", ";
-                result += "x" + Variables[i].Index + " " + GetVariableTypeString(Variables[i].Type);
+                if (i > 0) result.Append(", ");
+                result.Append("x").Append(Variables[i].Index).Append(" ").Append(GetVariableTypeString(Variables[i].Type));
             }
 
-            return result;
+            return result.ToString();
         }
 
         private string GetVariableTypeString(VariableType type)
@@ -254,12 +252,14 @@ namespace Group_V_26_LPR381_Project.Models
                 default: return "Continuous";
             }
         }
+
         // PART 3: BRANCH AND BOUND
         public LinearProgram Clone()
         {
             return new LinearProgram
             {
                 IsMaximization = this.IsMaximization,
+                isKnapsackProblem = this.isKnapsackProblem,
                 Variables = this.Variables.Select(v => new Variable
                 {
                     Index = v.Index,
@@ -273,6 +273,11 @@ namespace Group_V_26_LPR381_Project.Models
                     Relation = c.Relation,
                     Rhs = c.Rhs,
                     Slack = c.Slack
+                }).ToList(),
+                WeightConstraints = this.WeightConstraints.Select(wc => new WeightConstraint
+                {
+                    Coefficients = new List<double>(wc.Coefficients),
+                    Capacity = wc.Capacity
                 }).ToList()
             };
         }
