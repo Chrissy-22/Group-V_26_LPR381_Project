@@ -29,26 +29,26 @@
         private void InitializeComponent()
         {
             this.pnlHeader = new System.Windows.Forms.Panel();
-            this.pnlButtons = new System.Windows.Forms.Panel();
-            this.splitter1 = new System.Windows.Forms.Splitter();
-            this.tblUserControls = new System.Windows.Forms.TableLayoutPanel();
-            this.btnLoadProblem = new System.Windows.Forms.Button();
-            this.txtProblemInput = new System.Windows.Forms.RichTextBox();
             this.tblHeader = new System.Windows.Forms.TableLayoutPanel();
             this.lblAlgorithmName = new System.Windows.Forms.Label();
-            this.btnSolvePrimal = new System.Windows.Forms.Button();
-            this.btnSolveRevised = new System.Windows.Forms.Button();
-            this.btnSolveBranchAndBound = new System.Windows.Forms.Button();
-            this.btnSolveKnapsack = new System.Windows.Forms.Button();
-            this.btnSolveCuttingPlane = new System.Windows.Forms.Button();
-            this.btnSolveSensitivityAnalysis = new System.Windows.Forms.Button();
+            this.pnlButtons = new System.Windows.Forms.Panel();
+            this.tblUserControls = new System.Windows.Forms.TableLayoutPanel();
             this.btnExportResults = new System.Windows.Forms.Button();
+            this.btnSolveSensitivityAnalysis = new System.Windows.Forms.Button();
+            this.btnSolveCuttingPlane = new System.Windows.Forms.Button();
+            this.btnSolveKnapsack = new System.Windows.Forms.Button();
+            this.btnSolveBranchAndBound = new System.Windows.Forms.Button();
+            this.btnSolveRevised = new System.Windows.Forms.Button();
+            this.btnSolvePrimal = new System.Windows.Forms.Button();
+            this.btnLoadProblem = new System.Windows.Forms.Button();
+            this.txtProblemInput = new System.Windows.Forms.RichTextBox();
+            this.splitter1 = new System.Windows.Forms.Splitter();
             this.pnlContent = new System.Windows.Forms.Panel();
             this.txtSolutionOutput = new System.Windows.Forms.RichTextBox();
             this.pnlHeader.SuspendLayout();
+            this.tblHeader.SuspendLayout();
             this.pnlButtons.SuspendLayout();
             this.tblUserControls.SuspendLayout();
-            this.tblHeader.SuspendLayout();
             this.pnlContent.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -63,6 +63,35 @@
             this.pnlHeader.Size = new System.Drawing.Size(665, 40);
             this.pnlHeader.TabIndex = 0;
             // 
+            // tblHeader
+            // 
+            this.tblHeader.ColumnCount = 1;
+            this.tblHeader.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
+            this.tblHeader.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
+            this.tblHeader.Controls.Add(this.lblAlgorithmName, 0, 0);
+            this.tblHeader.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.tblHeader.Location = new System.Drawing.Point(0, 0);
+            this.tblHeader.Margin = new System.Windows.Forms.Padding(0);
+            this.tblHeader.Name = "tblHeader";
+            this.tblHeader.RowCount = 1;
+            this.tblHeader.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 50F));
+            this.tblHeader.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 50F));
+            this.tblHeader.Size = new System.Drawing.Size(665, 40);
+            this.tblHeader.TabIndex = 0;
+            // 
+            // lblAlgorithmName
+            // 
+            this.lblAlgorithmName.AutoSize = true;
+            this.lblAlgorithmName.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.lblAlgorithmName.Font = new System.Drawing.Font("Segoe UI", 15.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.lblAlgorithmName.Location = new System.Drawing.Point(0, 0);
+            this.lblAlgorithmName.Margin = new System.Windows.Forms.Padding(0);
+            this.lblAlgorithmName.Name = "lblAlgorithmName";
+            this.lblAlgorithmName.Size = new System.Drawing.Size(665, 40);
+            this.lblAlgorithmName.TabIndex = 0;
+            this.lblAlgorithmName.Text = "Algorithm name";
+            this.lblAlgorithmName.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
             // pnlButtons
             // 
             this.pnlButtons.Controls.Add(this.tblUserControls);
@@ -73,15 +102,6 @@
             this.pnlButtons.Name = "pnlButtons";
             this.pnlButtons.Size = new System.Drawing.Size(309, 585);
             this.pnlButtons.TabIndex = 1;
-            // 
-            // splitter1
-            // 
-            this.splitter1.BackColor = System.Drawing.Color.Gray;
-            this.splitter1.Location = new System.Drawing.Point(309, 0);
-            this.splitter1.Name = "splitter1";
-            this.splitter1.Size = new System.Drawing.Size(10, 585);
-            this.splitter1.TabIndex = 2;
-            this.splitter1.TabStop = false;
             // 
             // tblUserControls
             // 
@@ -115,14 +135,154 @@
             this.tblUserControls.Size = new System.Drawing.Size(309, 585);
             this.tblUserControls.TabIndex = 0;
             // 
+            // btnExportResults
+            // 
+            this.btnExportResults.BackColor = System.Drawing.Color.Transparent;
+            this.btnExportResults.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.btnExportResults.FlatAppearance.BorderColor = System.Drawing.Color.Green;
+            this.btnExportResults.FlatAppearance.MouseDownBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(134)))), ((int)(((byte)(187)))), ((int)(((byte)(216)))));
+            this.btnExportResults.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(93)))), ((int)(((byte)(144)))), ((int)(((byte)(177)))));
+            this.btnExportResults.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnExportResults.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnExportResults.ForeColor = System.Drawing.Color.Green;
+            this.btnExportResults.Location = new System.Drawing.Point(159, 550);
+            this.btnExportResults.Margin = new System.Windows.Forms.Padding(5);
+            this.btnExportResults.Name = "btnExportResults";
+            this.btnExportResults.Size = new System.Drawing.Size(145, 30);
+            this.btnExportResults.TabIndex = 8;
+            this.btnExportResults.Text = "Export";
+            this.btnExportResults.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            this.btnExportResults.UseVisualStyleBackColor = false;
+            this.btnExportResults.Click += new System.EventHandler(this.btnExportResults_Click);
+            // 
+            // btnSolveSensitivityAnalysis
+            // 
+            this.btnSolveSensitivityAnalysis.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(128)))), ((int)(((byte)(128)))), ((int)(((byte)(255)))));
+            this.tblUserControls.SetColumnSpan(this.btnSolveSensitivityAnalysis, 2);
+            this.btnSolveSensitivityAnalysis.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.btnSolveSensitivityAnalysis.FlatAppearance.BorderSize = 0;
+            this.btnSolveSensitivityAnalysis.FlatAppearance.MouseDownBackColor = System.Drawing.Color.Gray;
+            this.btnSolveSensitivityAnalysis.FlatAppearance.MouseOverBackColor = System.Drawing.Color.Silver;
+            this.btnSolveSensitivityAnalysis.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnSolveSensitivityAnalysis.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnSolveSensitivityAnalysis.ForeColor = System.Drawing.Color.White;
+            this.btnSolveSensitivityAnalysis.Location = new System.Drawing.Point(5, 510);
+            this.btnSolveSensitivityAnalysis.Margin = new System.Windows.Forms.Padding(5);
+            this.btnSolveSensitivityAnalysis.Name = "btnSolveSensitivityAnalysis";
+            this.btnSolveSensitivityAnalysis.Size = new System.Drawing.Size(299, 30);
+            this.btnSolveSensitivityAnalysis.TabIndex = 7;
+            this.btnSolveSensitivityAnalysis.Text = "Sensitivity Analysis";
+            this.btnSolveSensitivityAnalysis.UseVisualStyleBackColor = false;
+            this.btnSolveSensitivityAnalysis.Click += new System.EventHandler(this.btnSolveSensitivityAnalysis_Click);
+            // 
+            // btnSolveCuttingPlane
+            // 
+            this.btnSolveCuttingPlane.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(111)))), ((int)(((byte)(186)))), ((int)(((byte)(49)))));
+            this.tblUserControls.SetColumnSpan(this.btnSolveCuttingPlane, 2);
+            this.btnSolveCuttingPlane.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.btnSolveCuttingPlane.FlatAppearance.BorderSize = 0;
+            this.btnSolveCuttingPlane.FlatAppearance.MouseDownBackColor = System.Drawing.Color.Gray;
+            this.btnSolveCuttingPlane.FlatAppearance.MouseOverBackColor = System.Drawing.Color.Silver;
+            this.btnSolveCuttingPlane.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnSolveCuttingPlane.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnSolveCuttingPlane.ForeColor = System.Drawing.Color.White;
+            this.btnSolveCuttingPlane.Location = new System.Drawing.Point(5, 470);
+            this.btnSolveCuttingPlane.Margin = new System.Windows.Forms.Padding(5);
+            this.btnSolveCuttingPlane.Name = "btnSolveCuttingPlane";
+            this.btnSolveCuttingPlane.Size = new System.Drawing.Size(299, 30);
+            this.btnSolveCuttingPlane.TabIndex = 6;
+            this.btnSolveCuttingPlane.Text = "Cutting Plane Algorithm";
+            this.btnSolveCuttingPlane.UseVisualStyleBackColor = false;
+            this.btnSolveCuttingPlane.Click += new System.EventHandler(this.btnSolveCuttingPlane_Click);
+            // 
+            // btnSolveKnapsack
+            // 
+            this.btnSolveKnapsack.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(244)))), ((int)(((byte)(137)))), ((int)(((byte)(35)))));
+            this.tblUserControls.SetColumnSpan(this.btnSolveKnapsack, 2);
+            this.btnSolveKnapsack.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.btnSolveKnapsack.FlatAppearance.BorderSize = 0;
+            this.btnSolveKnapsack.FlatAppearance.MouseDownBackColor = System.Drawing.Color.Gray;
+            this.btnSolveKnapsack.FlatAppearance.MouseOverBackColor = System.Drawing.Color.Silver;
+            this.btnSolveKnapsack.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnSolveKnapsack.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnSolveKnapsack.ForeColor = System.Drawing.Color.White;
+            this.btnSolveKnapsack.Location = new System.Drawing.Point(5, 430);
+            this.btnSolveKnapsack.Margin = new System.Windows.Forms.Padding(5);
+            this.btnSolveKnapsack.Name = "btnSolveKnapsack";
+            this.btnSolveKnapsack.Size = new System.Drawing.Size(299, 30);
+            this.btnSolveKnapsack.TabIndex = 5;
+            this.btnSolveKnapsack.Text = "Knapsack Algorithm";
+            this.btnSolveKnapsack.UseVisualStyleBackColor = false;
+            this.btnSolveKnapsack.Click += new System.EventHandler(this.btnSolveKnapsack_Click);
+            // 
+            // btnSolveBranchAndBound
+            // 
+            this.btnSolveBranchAndBound.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(242)))), ((int)(((byte)(100)))), ((int)(((byte)(25)))));
+            this.tblUserControls.SetColumnSpan(this.btnSolveBranchAndBound, 2);
+            this.btnSolveBranchAndBound.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.btnSolveBranchAndBound.FlatAppearance.BorderSize = 0;
+            this.btnSolveBranchAndBound.FlatAppearance.MouseDownBackColor = System.Drawing.Color.Gray;
+            this.btnSolveBranchAndBound.FlatAppearance.MouseOverBackColor = System.Drawing.Color.Silver;
+            this.btnSolveBranchAndBound.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnSolveBranchAndBound.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnSolveBranchAndBound.ForeColor = System.Drawing.Color.White;
+            this.btnSolveBranchAndBound.Location = new System.Drawing.Point(5, 390);
+            this.btnSolveBranchAndBound.Margin = new System.Windows.Forms.Padding(5);
+            this.btnSolveBranchAndBound.Name = "btnSolveBranchAndBound";
+            this.btnSolveBranchAndBound.Size = new System.Drawing.Size(299, 30);
+            this.btnSolveBranchAndBound.TabIndex = 4;
+            this.btnSolveBranchAndBound.Text = "Branch and Bound Algorithm";
+            this.btnSolveBranchAndBound.UseVisualStyleBackColor = false;
+            this.btnSolveBranchAndBound.Click += new System.EventHandler(this.btnSolveBranchAndBound_Click);
+            // 
+            // btnSolveRevised
+            // 
+            this.btnSolveRevised.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(80)))), ((int)(((byte)(197)))), ((int)(((byte)(183)))));
+            this.tblUserControls.SetColumnSpan(this.btnSolveRevised, 2);
+            this.btnSolveRevised.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.btnSolveRevised.FlatAppearance.BorderSize = 0;
+            this.btnSolveRevised.FlatAppearance.MouseDownBackColor = System.Drawing.Color.Gray;
+            this.btnSolveRevised.FlatAppearance.MouseOverBackColor = System.Drawing.Color.Silver;
+            this.btnSolveRevised.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnSolveRevised.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnSolveRevised.ForeColor = System.Drawing.Color.White;
+            this.btnSolveRevised.Location = new System.Drawing.Point(5, 350);
+            this.btnSolveRevised.Margin = new System.Windows.Forms.Padding(5);
+            this.btnSolveRevised.Name = "btnSolveRevised";
+            this.btnSolveRevised.Size = new System.Drawing.Size(299, 30);
+            this.btnSolveRevised.TabIndex = 3;
+            this.btnSolveRevised.Text = "Revised Primal Simplex";
+            this.btnSolveRevised.UseVisualStyleBackColor = false;
+            this.btnSolveRevised.Click += new System.EventHandler(this.btnSolveRevised_Click);
+            // 
+            // btnSolvePrimal
+            // 
+            this.btnSolvePrimal.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(66)))), ((int)(((byte)(149)))), ((int)(((byte)(161)))));
+            this.tblUserControls.SetColumnSpan(this.btnSolvePrimal, 2);
+            this.btnSolvePrimal.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.btnSolvePrimal.FlatAppearance.BorderSize = 0;
+            this.btnSolvePrimal.FlatAppearance.MouseDownBackColor = System.Drawing.Color.Gray;
+            this.btnSolvePrimal.FlatAppearance.MouseOverBackColor = System.Drawing.Color.Silver;
+            this.btnSolvePrimal.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnSolvePrimal.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnSolvePrimal.ForeColor = System.Drawing.Color.White;
+            this.btnSolvePrimal.Location = new System.Drawing.Point(5, 310);
+            this.btnSolvePrimal.Margin = new System.Windows.Forms.Padding(5);
+            this.btnSolvePrimal.Name = "btnSolvePrimal";
+            this.btnSolvePrimal.Size = new System.Drawing.Size(299, 30);
+            this.btnSolvePrimal.TabIndex = 2;
+            this.btnSolvePrimal.Text = "Primal Simplex";
+            this.btnSolvePrimal.UseVisualStyleBackColor = false;
+            this.btnSolvePrimal.Click += new System.EventHandler(this.btnSolvePrimal_Click);
+            // 
             // btnLoadProblem
             // 
-            this.btnLoadProblem.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(51)))), ((int)(((byte)(101)))), ((int)(((byte)(138)))));
+            this.btnLoadProblem.BackColor = System.Drawing.Color.Gold;
             this.tblUserControls.SetColumnSpan(this.btnLoadProblem, 2);
             this.btnLoadProblem.Dock = System.Windows.Forms.DockStyle.Fill;
             this.btnLoadProblem.FlatAppearance.BorderSize = 0;
-            this.btnLoadProblem.FlatAppearance.MouseDownBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(134)))), ((int)(((byte)(187)))), ((int)(((byte)(216)))));
-            this.btnLoadProblem.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(93)))), ((int)(((byte)(144)))), ((int)(((byte)(177)))));
+            this.btnLoadProblem.FlatAppearance.MouseDownBackColor = System.Drawing.Color.Gray;
+            this.btnLoadProblem.FlatAppearance.MouseOverBackColor = System.Drawing.Color.Silver;
             this.btnLoadProblem.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnLoadProblem.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.btnLoadProblem.ForeColor = System.Drawing.Color.White;
@@ -146,180 +306,21 @@
             this.txtProblemInput.TabIndex = 1;
             this.txtProblemInput.Text = "";
             // 
-            // tblHeader
+            // splitter1
             // 
-            this.tblHeader.ColumnCount = 1;
-            this.tblHeader.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
-            this.tblHeader.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
-            this.tblHeader.Controls.Add(this.lblAlgorithmName, 0, 0);
-            this.tblHeader.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.tblHeader.Location = new System.Drawing.Point(0, 0);
-            this.tblHeader.Margin = new System.Windows.Forms.Padding(0);
-            this.tblHeader.Name = "tblHeader";
-            this.tblHeader.RowCount = 1;
-            this.tblHeader.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 50F));
-            this.tblHeader.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 50F));
-            this.tblHeader.Size = new System.Drawing.Size(665, 40);
-            this.tblHeader.TabIndex = 0;
-            // 
-            // lblAlgorithmName
-            // 
-            this.lblAlgorithmName.AutoSize = true;
-            this.lblAlgorithmName.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.lblAlgorithmName.Font = new System.Drawing.Font("Segoe UI", 15.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.lblAlgorithmName.Location = new System.Drawing.Point(3, 0);
-            this.lblAlgorithmName.Name = "lblAlgorithmName";
-            this.lblAlgorithmName.Size = new System.Drawing.Size(659, 40);
-            this.lblAlgorithmName.TabIndex = 0;
-            this.lblAlgorithmName.Text = "Algorithm name";
-            this.lblAlgorithmName.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            // 
-            // btnSolvePrimal
-            // 
-            this.btnSolvePrimal.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(66)))), ((int)(((byte)(149)))), ((int)(((byte)(161)))));
-            this.tblUserControls.SetColumnSpan(this.btnSolvePrimal, 2);
-            this.btnSolvePrimal.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.btnSolvePrimal.FlatAppearance.BorderSize = 0;
-            this.btnSolvePrimal.FlatAppearance.MouseDownBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(134)))), ((int)(((byte)(187)))), ((int)(((byte)(216)))));
-            this.btnSolvePrimal.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(93)))), ((int)(((byte)(144)))), ((int)(((byte)(177)))));
-            this.btnSolvePrimal.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnSolvePrimal.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnSolvePrimal.ForeColor = System.Drawing.Color.White;
-            this.btnSolvePrimal.Location = new System.Drawing.Point(5, 310);
-            this.btnSolvePrimal.Margin = new System.Windows.Forms.Padding(5);
-            this.btnSolvePrimal.Name = "btnSolvePrimal";
-            this.btnSolvePrimal.Size = new System.Drawing.Size(299, 30);
-            this.btnSolvePrimal.TabIndex = 2;
-            this.btnSolvePrimal.Text = "Primal Simplex";
-            this.btnSolvePrimal.UseVisualStyleBackColor = false;
-            this.btnSolvePrimal.Click += new System.EventHandler(this.btnSolvePrimal_Click);
-            // 
-            // btnSolveRevised
-            // 
-            this.btnSolveRevised.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(80)))), ((int)(((byte)(197)))), ((int)(((byte)(183)))));
-            this.tblUserControls.SetColumnSpan(this.btnSolveRevised, 2);
-            this.btnSolveRevised.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.btnSolveRevised.FlatAppearance.BorderSize = 0;
-            this.btnSolveRevised.FlatAppearance.MouseDownBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(134)))), ((int)(((byte)(187)))), ((int)(((byte)(216)))));
-            this.btnSolveRevised.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(93)))), ((int)(((byte)(144)))), ((int)(((byte)(177)))));
-            this.btnSolveRevised.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnSolveRevised.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnSolveRevised.ForeColor = System.Drawing.Color.White;
-            this.btnSolveRevised.Location = new System.Drawing.Point(5, 350);
-            this.btnSolveRevised.Margin = new System.Windows.Forms.Padding(5);
-            this.btnSolveRevised.Name = "btnSolveRevised";
-            this.btnSolveRevised.Size = new System.Drawing.Size(299, 30);
-            this.btnSolveRevised.TabIndex = 3;
-            this.btnSolveRevised.Text = "Revised Primal Simplex";
-            this.btnSolveRevised.UseVisualStyleBackColor = false;
-            this.btnSolveRevised.Click += new System.EventHandler(this.btnSolveRevised_Click);
-            // 
-            // btnSolveBranchAndBound
-            // 
-            this.btnSolveBranchAndBound.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(242)))), ((int)(((byte)(100)))), ((int)(((byte)(25)))));
-            this.tblUserControls.SetColumnSpan(this.btnSolveBranchAndBound, 2);
-            this.btnSolveBranchAndBound.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.btnSolveBranchAndBound.FlatAppearance.BorderSize = 0;
-            this.btnSolveBranchAndBound.FlatAppearance.MouseDownBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(134)))), ((int)(((byte)(187)))), ((int)(((byte)(216)))));
-            this.btnSolveBranchAndBound.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(93)))), ((int)(((byte)(144)))), ((int)(((byte)(177)))));
-            this.btnSolveBranchAndBound.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnSolveBranchAndBound.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnSolveBranchAndBound.ForeColor = System.Drawing.Color.White;
-            this.btnSolveBranchAndBound.Location = new System.Drawing.Point(5, 390);
-            this.btnSolveBranchAndBound.Margin = new System.Windows.Forms.Padding(5);
-            this.btnSolveBranchAndBound.Name = "btnSolveBranchAndBound";
-            this.btnSolveBranchAndBound.Size = new System.Drawing.Size(299, 30);
-            this.btnSolveBranchAndBound.TabIndex = 4;
-            this.btnSolveBranchAndBound.Text = "Branch and Bound Algorithm";
-            this.btnSolveBranchAndBound.UseVisualStyleBackColor = false;
-            this.btnSolveBranchAndBound.Click += new System.EventHandler(this.btnSolveBranchAndBound_Click);
-            // 
-            // btnSolveKnapsack
-            // 
-            this.btnSolveKnapsack.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(244)))), ((int)(((byte)(137)))), ((int)(((byte)(35)))));
-            this.tblUserControls.SetColumnSpan(this.btnSolveKnapsack, 2);
-            this.btnSolveKnapsack.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.btnSolveKnapsack.FlatAppearance.BorderSize = 0;
-            this.btnSolveKnapsack.FlatAppearance.MouseDownBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(134)))), ((int)(((byte)(187)))), ((int)(((byte)(216)))));
-            this.btnSolveKnapsack.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(93)))), ((int)(((byte)(144)))), ((int)(((byte)(177)))));
-            this.btnSolveKnapsack.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnSolveKnapsack.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnSolveKnapsack.ForeColor = System.Drawing.Color.White;
-            this.btnSolveKnapsack.Location = new System.Drawing.Point(5, 430);
-            this.btnSolveKnapsack.Margin = new System.Windows.Forms.Padding(5);
-            this.btnSolveKnapsack.Name = "btnSolveKnapsack";
-            this.btnSolveKnapsack.Size = new System.Drawing.Size(299, 30);
-            this.btnSolveKnapsack.TabIndex = 5;
-            this.btnSolveKnapsack.Text = "Knapsack Algorithm";
-            this.btnSolveKnapsack.UseVisualStyleBackColor = false;
-            this.btnSolveKnapsack.Click += new System.EventHandler(this.btnSolveKnapsack_Click);
-            // 
-            // btnSolveCuttingPlane
-            // 
-            this.btnSolveCuttingPlane.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(111)))), ((int)(((byte)(186)))), ((int)(((byte)(49)))));
-            this.tblUserControls.SetColumnSpan(this.btnSolveCuttingPlane, 2);
-            this.btnSolveCuttingPlane.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.btnSolveCuttingPlane.FlatAppearance.BorderSize = 0;
-            this.btnSolveCuttingPlane.FlatAppearance.MouseDownBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(134)))), ((int)(((byte)(187)))), ((int)(((byte)(216)))));
-            this.btnSolveCuttingPlane.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(93)))), ((int)(((byte)(144)))), ((int)(((byte)(177)))));
-            this.btnSolveCuttingPlane.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnSolveCuttingPlane.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnSolveCuttingPlane.ForeColor = System.Drawing.Color.White;
-            this.btnSolveCuttingPlane.Location = new System.Drawing.Point(5, 470);
-            this.btnSolveCuttingPlane.Margin = new System.Windows.Forms.Padding(5);
-            this.btnSolveCuttingPlane.Name = "btnSolveCuttingPlane";
-            this.btnSolveCuttingPlane.Size = new System.Drawing.Size(299, 30);
-            this.btnSolveCuttingPlane.TabIndex = 6;
-            this.btnSolveCuttingPlane.Text = "Cutting Plane Algorithm";
-            this.btnSolveCuttingPlane.UseVisualStyleBackColor = false;
-            this.btnSolveCuttingPlane.Click += new System.EventHandler(this.btnSolveCuttingPlane_Click);
-            // 
-            // btnSolveSensitivityAnalysis
-            // 
-            this.btnSolveSensitivityAnalysis.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(241)))), ((int)(((byte)(211)))), ((int)(((byte)(2)))));
-            this.tblUserControls.SetColumnSpan(this.btnSolveSensitivityAnalysis, 2);
-            this.btnSolveSensitivityAnalysis.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.btnSolveSensitivityAnalysis.FlatAppearance.BorderSize = 0;
-            this.btnSolveSensitivityAnalysis.FlatAppearance.MouseDownBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(134)))), ((int)(((byte)(187)))), ((int)(((byte)(216)))));
-            this.btnSolveSensitivityAnalysis.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(93)))), ((int)(((byte)(144)))), ((int)(((byte)(177)))));
-            this.btnSolveSensitivityAnalysis.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnSolveSensitivityAnalysis.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnSolveSensitivityAnalysis.ForeColor = System.Drawing.Color.White;
-            this.btnSolveSensitivityAnalysis.Location = new System.Drawing.Point(5, 510);
-            this.btnSolveSensitivityAnalysis.Margin = new System.Windows.Forms.Padding(5);
-            this.btnSolveSensitivityAnalysis.Name = "btnSolveSensitivityAnalysis";
-            this.btnSolveSensitivityAnalysis.Size = new System.Drawing.Size(299, 30);
-            this.btnSolveSensitivityAnalysis.TabIndex = 7;
-            this.btnSolveSensitivityAnalysis.Text = "Sensitivity Analysis";
-            this.btnSolveSensitivityAnalysis.UseVisualStyleBackColor = false;
-            this.btnSolveSensitivityAnalysis.Click += new System.EventHandler(this.btnSolveSensitivityAnalysis_Click);
-            // 
-            // btnExportResults
-            // 
-            this.btnExportResults.BackColor = System.Drawing.Color.Transparent;
-            this.btnExportResults.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.btnExportResults.FlatAppearance.BorderColor = System.Drawing.Color.Green;
-            this.btnExportResults.FlatAppearance.MouseDownBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(134)))), ((int)(((byte)(187)))), ((int)(((byte)(216)))));
-            this.btnExportResults.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(93)))), ((int)(((byte)(144)))), ((int)(((byte)(177)))));
-            this.btnExportResults.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnExportResults.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnExportResults.ForeColor = System.Drawing.Color.Green;
-            this.btnExportResults.Location = new System.Drawing.Point(159, 550);
-            this.btnExportResults.Margin = new System.Windows.Forms.Padding(5);
-            this.btnExportResults.Name = "btnExportResults";
-            this.btnExportResults.Size = new System.Drawing.Size(145, 30);
-            this.btnExportResults.TabIndex = 8;
-            this.btnExportResults.Text = "Export";
-            this.btnExportResults.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
-            this.btnExportResults.UseVisualStyleBackColor = false;
-            this.btnExportResults.Click += new System.EventHandler(this.btnExportResults_Click);
+            this.splitter1.BackColor = System.Drawing.Color.Gray;
+            this.splitter1.Location = new System.Drawing.Point(309, 0);
+            this.splitter1.Name = "splitter1";
+            this.splitter1.Size = new System.Drawing.Size(10, 585);
+            this.splitter1.TabIndex = 2;
+            this.splitter1.TabStop = false;
             // 
             // pnlContent
             // 
             this.pnlContent.Controls.Add(this.txtSolutionOutput);
             this.pnlContent.Dock = System.Windows.Forms.DockStyle.Fill;
             this.pnlContent.Location = new System.Drawing.Point(319, 40);
-            this.pnlContent.Margin = new System.Windows.Forms.Padding(5);
+            this.pnlContent.Margin = new System.Windows.Forms.Padding(10);
             this.pnlContent.Name = "pnlContent";
             this.pnlContent.Size = new System.Drawing.Size(665, 545);
             this.pnlContent.TabIndex = 3;
@@ -328,6 +329,7 @@
             // 
             this.txtSolutionOutput.Dock = System.Windows.Forms.DockStyle.Fill;
             this.txtSolutionOutput.Location = new System.Drawing.Point(0, 0);
+            this.txtSolutionOutput.Margin = new System.Windows.Forms.Padding(0);
             this.txtSolutionOutput.Name = "txtSolutionOutput";
             this.txtSolutionOutput.Size = new System.Drawing.Size(665, 545);
             this.txtSolutionOutput.TabIndex = 0;
@@ -348,10 +350,10 @@
             this.Name = "frmMainForm";
             this.Text = "Linear Programming Solver";
             this.pnlHeader.ResumeLayout(false);
-            this.pnlButtons.ResumeLayout(false);
-            this.tblUserControls.ResumeLayout(false);
             this.tblHeader.ResumeLayout(false);
             this.tblHeader.PerformLayout();
+            this.pnlButtons.ResumeLayout(false);
+            this.tblUserControls.ResumeLayout(false);
             this.pnlContent.ResumeLayout(false);
             this.ResumeLayout(false);
 
