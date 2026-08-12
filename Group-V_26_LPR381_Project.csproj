@@ -93,6 +93,7 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="Data\Assignment 1.txt" />
     <Content Include="Data\Binary1.txt" />
     <Content Include="Data\Binary2.txt" />
     <Content Include="Data\Binary3.txt" />

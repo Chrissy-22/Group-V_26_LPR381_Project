@@ -149,5 +149,7 @@ namespace Group_V_26_LPR381_Project.Presentation_Layer
             rtb.AppendText(text);
             rtb.SelectionBackColor = NormalBackColor; // reset so the trailing caret doesn't inherit yellow
         }
+
+
     }
 }

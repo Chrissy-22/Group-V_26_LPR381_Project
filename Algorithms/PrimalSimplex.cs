@@ -521,59 +521,92 @@ namespace Group_V_26_LPR381_Project.Algorithms
         /// Only positive pivot-column coefficients are considered.
         /// The smallest non-negative ratio determines the leaving row.
         /// </summary>
-        public int FindPivotRow(
-            int pivotColumn)
+        public int FindPivotRow(int pivotColumn)
         {
-            if (pivotColumn < 0 ||
-                pivotColumn >= _cols - 1)
-            {
+            if (pivotColumn < 0 || pivotColumn >= _cols - 1)
                 return -1;
-            }
 
             int pivotRow = -1;
+            double smallestRatio = double.MaxValue;
 
-            double minimumRatio =
-                double.MaxValue;
-
-            for (int i = 1;
-                 i < _rows;
-                 i++)
+            for (int i = 1; i < _rows; i++)
             {
-                double pivotCoefficient =
-                    _matrix[i, pivotColumn];
+                double pivotValue = _matrix[i, pivotColumn];
+                double rhs = _matrix[i, _cols - 1];
 
-                double rhs =
-                    _matrix[i, _cols - 1];
-
-                // Ignore zero and negative coefficients.
-                if (pivotCoefficient <=
-                    TOLERANCE)
+                // Only positive pivot-column values are allowed
+                // in the primal simplex ratio test.
+                if (pivotValue > TOLERANCE)
                 {
-                    continue;
-                }
+                    double ratio = rhs / pivotValue;
 
-                double ratio =
-                    rhs / pivotCoefficient;
-
-                // A negative ratio cannot represent a feasible
-                // leaving variable for the standard primal simplex.
-                if (ratio < -TOLERANCE)
-                {
-                    continue;
-                }
-
-                if (ratio < minimumRatio)
-                {
-                    minimumRatio =
-                        ratio;
-
-                    pivotRow = i;
+                    // Ignore negative ratios.
+                    if (ratio >= -TOLERANCE &&
+                        ratio < smallestRatio)
+                    {
+                        smallestRatio = ratio;
+                        pivotRow = i;
+                    }
                 }
             }
 
             return pivotRow;
         }
 
+
+        public string GetRatioTest(int pivotColumn)
+        {
+            var sb = new StringBuilder();
+
+            List<string> headers = GetColumnHeaders();
+
+            sb.AppendLine(
+                "Ratio Test for " +
+                headers[pivotColumn] +
+                ":"
+            );
+
+            sb.AppendLine(
+                "Row\tRHS\t" +
+                headers[pivotColumn] +
+                "\tθ"
+            );
+
+            for (int i = 1; i < _rows; i++)
+            {
+                double pivotValue =
+                    _matrix[i, pivotColumn];
+
+                double rhs =
+                    _matrix[i, _cols - 1];
+
+                sb.Append(
+                    "R" +
+                    i +
+                    "\t" +
+                    NumberFormatter.Format(rhs) +
+                    "\t" +
+                    NumberFormatter.Format(pivotValue) +
+                    "\t"
+                );
+
+                if (pivotValue > 1e-6)
+                {
+                    double ratio =
+                        rhs / pivotValue;
+
+                    sb.AppendLine(
+                        NumberFormatter.Format(ratio)
+                    );
+                }
+                else
+                {
+                    sb.AppendLine("-");
+                }
+            }
+
+            return sb.ToString();
+        }
         // -------------------------------------------------------------
         // PIVOT
         // -------------------------------------------------------------
