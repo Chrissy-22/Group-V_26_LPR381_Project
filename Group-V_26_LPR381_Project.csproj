@@ -50,12 +50,16 @@
     <Compile Include="Algorithms\ConstraintHandler.cs" />
     <Compile Include="Algorithms\CuttingPlane.cs" />
     <Compile Include="Algorithms\DualSimplex.cs" />
+    <Compile Include="Algorithms\GoldenSectionSearch.cs" />
     <Compile Include="Algorithms\ISolver.cs" />
     <Compile Include="Algorithms\Knapsack.cs" />
     <Compile Include="Algorithms\PrimalSimplex.cs" />
     <Compile Include="Algorithms\RevisedPrimalSimplex.cs" />
     <Compile Include="Algorithms\SensitivityAnalysis.cs" />
     <Compile Include="Models\LinearProgram.cs" />
+    <Compile Include="Models\NonLinearFunctions.cs" />
+    <Compile Include="Models\NonLinearRouter.cs" />
+    <Compile Include="Models\NonLinearToLinearConverter.cs" />
     <Compile Include="Models\NumberFormatter.cs" />
     <Compile Include="Models\Solution.cs" />
     <Compile Include="Presentation Layer\frmMainForm.cs">

@@ -45,6 +45,7 @@
             this.splitter1 = new System.Windows.Forms.Splitter();
             this.pnlContent = new System.Windows.Forms.Panel();
             this.txtSolutionOutput = new System.Windows.Forms.RichTextBox();
+            this.btnSolveGoldenSection = new System.Windows.Forms.Button();
             this.pnlHeader.SuspendLayout();
             this.tblHeader.SuspendLayout();
             this.pnlButtons.SuspendLayout();
@@ -108,7 +109,8 @@
             this.tblUserControls.ColumnCount = 2;
             this.tblUserControls.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
             this.tblUserControls.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
-            this.tblUserControls.Controls.Add(this.btnExportResults, 1, 8);
+            this.tblUserControls.Controls.Add(this.btnSolveGoldenSection, 0, 8);
+            this.tblUserControls.Controls.Add(this.btnExportResults, 1, 9);
             this.tblUserControls.Controls.Add(this.btnSolveSensitivityAnalysis, 0, 7);
             this.tblUserControls.Controls.Add(this.btnSolveCuttingPlane, 0, 6);
             this.tblUserControls.Controls.Add(this.btnSolveKnapsack, 0, 5);
@@ -121,7 +123,7 @@
             this.tblUserControls.Location = new System.Drawing.Point(0, 0);
             this.tblUserControls.Margin = new System.Windows.Forms.Padding(0);
             this.tblUserControls.Name = "tblUserControls";
-            this.tblUserControls.RowCount = 9;
+            this.tblUserControls.RowCount = 10;
             this.tblUserControls.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 40F));
             this.tblUserControls.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
             this.tblUserControls.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 40F));
@@ -131,7 +133,7 @@
             this.tblUserControls.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 40F));
             this.tblUserControls.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 40F));
             this.tblUserControls.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 40F));
-            this.tblUserControls.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 20F));
+            this.tblUserControls.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 40F));
             this.tblUserControls.Size = new System.Drawing.Size(309, 585);
             this.tblUserControls.TabIndex = 0;
             // 
@@ -166,7 +168,7 @@
             this.btnSolveSensitivityAnalysis.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnSolveSensitivityAnalysis.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.btnSolveSensitivityAnalysis.ForeColor = System.Drawing.Color.White;
-            this.btnSolveSensitivityAnalysis.Location = new System.Drawing.Point(5, 510);
+            this.btnSolveSensitivityAnalysis.Location = new System.Drawing.Point(5, 470);
             this.btnSolveSensitivityAnalysis.Margin = new System.Windows.Forms.Padding(5);
             this.btnSolveSensitivityAnalysis.Name = "btnSolveSensitivityAnalysis";
             this.btnSolveSensitivityAnalysis.Size = new System.Drawing.Size(299, 30);
@@ -186,7 +188,7 @@
             this.btnSolveCuttingPlane.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnSolveCuttingPlane.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.btnSolveCuttingPlane.ForeColor = System.Drawing.Color.White;
-            this.btnSolveCuttingPlane.Location = new System.Drawing.Point(5, 470);
+            this.btnSolveCuttingPlane.Location = new System.Drawing.Point(5, 430);
             this.btnSolveCuttingPlane.Margin = new System.Windows.Forms.Padding(5);
             this.btnSolveCuttingPlane.Name = "btnSolveCuttingPlane";
             this.btnSolveCuttingPlane.Size = new System.Drawing.Size(299, 30);
@@ -206,7 +208,7 @@
             this.btnSolveKnapsack.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnSolveKnapsack.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.btnSolveKnapsack.ForeColor = System.Drawing.Color.White;
-            this.btnSolveKnapsack.Location = new System.Drawing.Point(5, 430);
+            this.btnSolveKnapsack.Location = new System.Drawing.Point(5, 390);
             this.btnSolveKnapsack.Margin = new System.Windows.Forms.Padding(5);
             this.btnSolveKnapsack.Name = "btnSolveKnapsack";
             this.btnSolveKnapsack.Size = new System.Drawing.Size(299, 30);
@@ -226,7 +228,7 @@
             this.btnSolveBranchAndBound.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnSolveBranchAndBound.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.btnSolveBranchAndBound.ForeColor = System.Drawing.Color.White;
-            this.btnSolveBranchAndBound.Location = new System.Drawing.Point(5, 390);
+            this.btnSolveBranchAndBound.Location = new System.Drawing.Point(5, 350);
             this.btnSolveBranchAndBound.Margin = new System.Windows.Forms.Padding(5);
             this.btnSolveBranchAndBound.Name = "btnSolveBranchAndBound";
             this.btnSolveBranchAndBound.Size = new System.Drawing.Size(299, 30);
@@ -246,7 +248,7 @@
             this.btnSolveRevised.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnSolveRevised.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.btnSolveRevised.ForeColor = System.Drawing.Color.White;
-            this.btnSolveRevised.Location = new System.Drawing.Point(5, 350);
+            this.btnSolveRevised.Location = new System.Drawing.Point(5, 310);
             this.btnSolveRevised.Margin = new System.Windows.Forms.Padding(5);
             this.btnSolveRevised.Name = "btnSolveRevised";
             this.btnSolveRevised.Size = new System.Drawing.Size(299, 30);
@@ -266,7 +268,7 @@
             this.btnSolvePrimal.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnSolvePrimal.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.btnSolvePrimal.ForeColor = System.Drawing.Color.White;
-            this.btnSolvePrimal.Location = new System.Drawing.Point(5, 310);
+            this.btnSolvePrimal.Location = new System.Drawing.Point(5, 270);
             this.btnSolvePrimal.Margin = new System.Windows.Forms.Padding(5);
             this.btnSolvePrimal.Name = "btnSolvePrimal";
             this.btnSolvePrimal.Size = new System.Drawing.Size(299, 30);
@@ -277,7 +279,7 @@
             // 
             // btnLoadProblem
             // 
-            this.btnLoadProblem.BackColor = System.Drawing.Color.Gold;
+            this.btnLoadProblem.BackColor = System.Drawing.Color.ForestGreen;
             this.tblUserControls.SetColumnSpan(this.btnLoadProblem, 2);
             this.btnLoadProblem.Dock = System.Windows.Forms.DockStyle.Fill;
             this.btnLoadProblem.FlatAppearance.BorderSize = 0;
@@ -302,7 +304,7 @@
             this.txtProblemInput.Location = new System.Drawing.Point(0, 40);
             this.txtProblemInput.Margin = new System.Windows.Forms.Padding(0);
             this.txtProblemInput.Name = "txtProblemInput";
-            this.txtProblemInput.Size = new System.Drawing.Size(309, 265);
+            this.txtProblemInput.Size = new System.Drawing.Size(309, 225);
             this.txtProblemInput.TabIndex = 1;
             this.txtProblemInput.Text = "";
             // 
@@ -334,6 +336,26 @@
             this.txtSolutionOutput.Size = new System.Drawing.Size(665, 545);
             this.txtSolutionOutput.TabIndex = 0;
             this.txtSolutionOutput.Text = "";
+            // 
+            // btnSolveGoldenSection
+            // 
+            this.btnSolveGoldenSection.BackColor = System.Drawing.Color.Gold;
+            this.tblUserControls.SetColumnSpan(this.btnSolveGoldenSection, 2);
+            this.btnSolveGoldenSection.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.btnSolveGoldenSection.FlatAppearance.BorderSize = 0;
+            this.btnSolveGoldenSection.FlatAppearance.MouseDownBackColor = System.Drawing.Color.Gray;
+            this.btnSolveGoldenSection.FlatAppearance.MouseOverBackColor = System.Drawing.Color.Silver;
+            this.btnSolveGoldenSection.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnSolveGoldenSection.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnSolveGoldenSection.ForeColor = System.Drawing.Color.White;
+            this.btnSolveGoldenSection.Location = new System.Drawing.Point(5, 510);
+            this.btnSolveGoldenSection.Margin = new System.Windows.Forms.Padding(5);
+            this.btnSolveGoldenSection.Name = "btnSolveGoldenSection";
+            this.btnSolveGoldenSection.Size = new System.Drawing.Size(299, 30);
+            this.btnSolveGoldenSection.TabIndex = 10;
+            this.btnSolveGoldenSection.Text = "Golden Section Search";
+            this.btnSolveGoldenSection.UseVisualStyleBackColor = false;
+            this.btnSolveGoldenSection.Click += new System.EventHandler(this.btnSolveGoldenSection_Click);
             // 
             // frmMainForm
             // 
@@ -378,5 +400,6 @@
         private System.Windows.Forms.Button btnExportResults;
         private System.Windows.Forms.Panel pnlContent;
         private System.Windows.Forms.RichTextBox txtSolutionOutput;
+        private System.Windows.Forms.Button btnSolveGoldenSection;
     }
 }

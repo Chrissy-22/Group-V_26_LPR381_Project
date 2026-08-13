@@ -24,7 +24,7 @@ namespace Group_V_26_LPR381_Project.Algorithms
                 return solution;
             }
 
-            solution.AddMessage("Running Primal Simplex algorithm...");
+            //solution.AddMessage("Running Primal Simplex algorithm...");
             solution.AddMessage("");
 
             var tableau = new Tableau(program);
