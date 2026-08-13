@@ -633,23 +633,11 @@ namespace Group_V_26_LPR381_Project.Algorithms
                     ? current.Solution.IterationColumnHeaders[last]
                     : null;
 
-            var pivotRow =
-                last <
-                current.Solution.IterationPivotRows.Count
-                    ? current.Solution.IterationPivotRows[last]
-                    : -1;
-
-            var pivotColumn =
-                last <
-                current.Solution.IterationPivotCols.Count
-                    ? current.Solution.IterationPivotCols[last]
-                    : -1;
-
             mainSolution.AddIteration(
                 current.Solution.IterationTableaux[last],
                 "Final Pivot Table",
-                pivotRow,
-                pivotColumn,
+                -1,
+                -1,
                 headers
             );
         }

@@ -22,6 +22,8 @@ namespace Group_V_26_LPR381_Project.Presentation_Layer
         {
             InitializeComponent();
 
+            lblAlgorithmName.Text = "Programming Model Solver";
+
             txtSolutionOutput.WordWrap = false;
             txtSolutionOutput.ScrollBars = RichTextBoxScrollBars.Both;
 
@@ -285,6 +287,9 @@ namespace Group_V_26_LPR381_Project.Presentation_Layer
 
             try
             {
+                lblAlgorithmName.Visible = true;
+                lblAlgorithmName.Text = "Primal Simplex Algorithm";
+
                 var program = LinearProgram.Parse(txtProblemInput.Text);
                 var solver = new PrimalSimplex();
                 var solution = solver.Solve(program);
@@ -311,6 +316,9 @@ namespace Group_V_26_LPR381_Project.Presentation_Layer
 
             try
             {
+                lblAlgorithmName.Visible = true;
+                lblAlgorithmName.Text = "Revised Primal Simplex Algorithm";
+
                 var program = LinearProgram.Parse(txtProblemInput.Text);
                 var solver = new RevisedPrimalSimplex();
                 var solution = solver.Solve(program);
@@ -336,6 +344,9 @@ namespace Group_V_26_LPR381_Project.Presentation_Layer
 
             try
             {
+                lblAlgorithmName.Visible = true;
+                lblAlgorithmName.Text = "Branch and Bound Simplex Algorithm";
+
                 btnSolveBranchAndBound.Enabled = false;
 
                 var program = LinearProgram.Parse(txtProblemInput.Text);
@@ -367,6 +378,9 @@ namespace Group_V_26_LPR381_Project.Presentation_Layer
 
             try
             {
+                lblAlgorithmName.Visible = true;
+                lblAlgorithmName.Text = "Branch and Bound: Knapsack Algorithm";
+
                 btnSolveKnapsack.Enabled = false;
 
                 var program = LinearProgram.Parse(txtProblemInput.Text);
@@ -398,6 +412,9 @@ namespace Group_V_26_LPR381_Project.Presentation_Layer
 
             try
             {
+                lblAlgorithmName.Visible = true;
+                lblAlgorithmName.Text = "Cutting Plane Algorithm";
+
                 btnSolveCuttingPlane.Enabled = false;
                 txtSolutionOutput.Clear();
                 txtSolutionOutput.AppendText("Running Cutting Plane algorithm...\n\n");
@@ -422,7 +439,8 @@ namespace Group_V_26_LPR381_Project.Presentation_Layer
         // Sensitivity Analysis
         private void btnSolveSensitivityAnalysis_Click(object sender, EventArgs e)
         {
-
+            lblAlgorithmName.Visible = true;
+            lblAlgorithmName.Text = "Sensitivity Analysis";
         }
 
         // Export
@@ -449,6 +467,33 @@ namespace Group_V_26_LPR381_Project.Presentation_Layer
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+        
+        private void btnSolveDualSimplex_Click(object sender, EventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(txtProblemInput.Text))
+            {
+                MessageBox.Show("Please load a problem first.", "Warning",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            try
+            {
+                lblAlgorithmName.Text = "Dual Simplex Algorithm";
+
+                var program = LinearProgram.Parse(txtProblemInput.Text);
+                var solver = new DualSimplex();
+                var solution = solver.Solve(program);
+
+                RenderSolution(solution);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error solving problem: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
         #endregion
     }
 }

@@ -75,11 +75,8 @@ namespace Group_V_26_LPR381_Project.Algorithms
                     tableau.GetColumnHeaders()[pivotColumn];
 
                 // -----------------------------------------------------
-                // DISPLAY THE CURRENT TABLEAU BEFORE PIVOTING.
-                //
-                // This is important:
-                // pivotRow and pivotColumn refer to the current tableau,
-                // so this is the tableau that must be highlighted.
+                // DISPLAY THE CURRENT TABLEAU BEFORE PIVOTING, WITH A
+                // θ (RATIO TEST) COLUMN APPENDED AFTER RHS.
                 // -----------------------------------------------------
 
                 string iterationTitle =
@@ -93,12 +90,28 @@ namespace Group_V_26_LPR381_Project.Algorithms
                     pivotColumn +
                     ")";
 
+                double[,] baseMatrix = tableau.GetMatrix();
+                double[] ratios = tableau.GetRatioColumn(pivotColumn);
+                int rows = baseMatrix.GetLength(0);
+                int cols = baseMatrix.GetLength(1);
+
+                double[,] withRatio = new double[rows, cols + 1];
+                for (int r = 0; r < rows; r++)
+                {
+                    for (int c = 0; c < cols; c++)
+                        withRatio[r, c] = baseMatrix[r, c];
+                    withRatio[r, cols] = ratios[r];
+                }
+
+                List<string> headersWithRatio = tableau.GetColumnHeaders();
+                headersWithRatio.Add("\u03B8"); // θ
+
                 solution.AddIteration(
-                    tableau.GetMatrix(),
+                    withRatio,
                     iterationTitle,
                     pivotRow,
                     pivotColumn,
-                    tableau.GetColumnHeaders()
+                    headersWithRatio
                 );
 
                 // -----------------------------------------------------
@@ -553,6 +566,26 @@ namespace Group_V_26_LPR381_Project.Algorithms
             return pivotRow;
         }
 
+        /// <summary>
+        /// Ratio (θ) for each row against the given pivot column: RHS / pivot-column
+        /// value, only for rows with a positive pivot-column value. Row 0 (objective)
+        /// and ineligible rows return NaN, rendered as "-" by TableauRenderer.
+        /// </summary>
+        public double[] GetRatioColumn(int pivotColumn)
+        {
+            double[] ratios = new double[_rows];
+            ratios[0] = double.NaN;
+
+            for (int i = 1; i < _rows; i++)
+            {
+                double pivotValue = _matrix[i, pivotColumn];
+                ratios[i] = pivotValue > TOLERANCE
+                    ? _matrix[i, _cols - 1] / pivotValue
+                    : double.NaN;
+            }
+
+            return ratios;
+        }
 
         public string GetRatioTest(int pivotColumn)
         {
