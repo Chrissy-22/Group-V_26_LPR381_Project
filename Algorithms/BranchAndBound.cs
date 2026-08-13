@@ -53,7 +53,7 @@ namespace Group_V_26_LPR381_Project.Algorithms
             _hasBestSolution = false;
             _bestIntegerSolution = null;
 
-            finalSolution.AddMessage("Running Branch and Bound algorithm...");
+            //finalSolution.AddMessage("Running Branch and Bound algorithm...");
             finalSolution.AddMessage("");
 
             finalSolution.AddStep(
@@ -767,12 +767,29 @@ namespace Group_V_26_LPR381_Project.Algorithms
             int lowestVariableIndex =
                 int.MaxValue;
 
+            // Only branch on variables actually declared Integer or Binary.
+            // Some formulations (e.g. the piecewise-linear MIP used for
+            // non-linear problems) deliberately mix continuous "weight"
+            // variables with binary "selector" variables in the same
+            // problem - only the selectors should ever be forced integer.
+            // Any variable index that doesn't map cleanly falls back to the
+            // old behaviour (branch on it) so nothing existing breaks.
             var decisionVariables =
                 solution.VariableValues
                     .Where(kvp =>
                         kvp.Key.StartsWith(
                             "x",
                             StringComparison.OrdinalIgnoreCase))
+                    .Where(kvp =>
+                    {
+                        int idx = GetVariableIndex(kvp.Key) - 1;
+                        if (idx < 0 || idx >= program.Variables.Count)
+                            return true;
+
+                        var type = program.Variables[idx].Type;
+                        return type == LinearProgram.VariableType.Integer ||
+                               type == LinearProgram.VariableType.Binary;
+                    })
                     .OrderBy(kvp =>
                         GetVariableIndex(kvp.Key))
                     .ToList();

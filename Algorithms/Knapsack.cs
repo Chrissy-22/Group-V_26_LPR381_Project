@@ -41,7 +41,7 @@ namespace LinearProgrammingSolver.Algorithms
             capacity = program.WeightConstraints[0].Capacity;
 
             Solution sol = new Solution();
-            sol.AddMessage("Running Branch and Bound Knapsack algorithm...");
+            //sol.AddMessage("Running Branch and Bound Knapsack algorithm...");
             sol.AddMessage("");
 
             items = new List<Item>(n);
