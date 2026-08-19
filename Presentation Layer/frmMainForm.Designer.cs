@@ -33,6 +33,7 @@
             this.lblAlgorithmName = new System.Windows.Forms.Label();
             this.pnlButtons = new System.Windows.Forms.Panel();
             this.tblUserControls = new System.Windows.Forms.TableLayoutPanel();
+            this.btnSolveGoldenSection = new System.Windows.Forms.Button();
             this.btnExportResults = new System.Windows.Forms.Button();
             this.btnSolveSensitivityAnalysis = new System.Windows.Forms.Button();
             this.btnSolveCuttingPlane = new System.Windows.Forms.Button();
@@ -45,7 +46,6 @@
             this.splitter1 = new System.Windows.Forms.Splitter();
             this.pnlContent = new System.Windows.Forms.Panel();
             this.txtSolutionOutput = new System.Windows.Forms.RichTextBox();
-            this.btnSolveGoldenSection = new System.Windows.Forms.Button();
             this.pnlHeader.SuspendLayout();
             this.tblHeader.SuspendLayout();
             this.pnlButtons.SuspendLayout();
@@ -136,6 +136,26 @@
             this.tblUserControls.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 40F));
             this.tblUserControls.Size = new System.Drawing.Size(309, 585);
             this.tblUserControls.TabIndex = 0;
+            // 
+            // btnSolveGoldenSection
+            // 
+            this.btnSolveGoldenSection.BackColor = System.Drawing.Color.Gold;
+            this.tblUserControls.SetColumnSpan(this.btnSolveGoldenSection, 2);
+            this.btnSolveGoldenSection.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.btnSolveGoldenSection.FlatAppearance.BorderSize = 0;
+            this.btnSolveGoldenSection.FlatAppearance.MouseDownBackColor = System.Drawing.Color.Gray;
+            this.btnSolveGoldenSection.FlatAppearance.MouseOverBackColor = System.Drawing.Color.Silver;
+            this.btnSolveGoldenSection.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnSolveGoldenSection.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnSolveGoldenSection.ForeColor = System.Drawing.Color.White;
+            this.btnSolveGoldenSection.Location = new System.Drawing.Point(5, 510);
+            this.btnSolveGoldenSection.Margin = new System.Windows.Forms.Padding(5);
+            this.btnSolveGoldenSection.Name = "btnSolveGoldenSection";
+            this.btnSolveGoldenSection.Size = new System.Drawing.Size(299, 30);
+            this.btnSolveGoldenSection.TabIndex = 10;
+            this.btnSolveGoldenSection.Text = "Golden Section Search";
+            this.btnSolveGoldenSection.UseVisualStyleBackColor = false;
+            this.btnSolveGoldenSection.Click += new System.EventHandler(this.btnSolveGoldenSection_Click);
             // 
             // btnExportResults
             // 
@@ -324,38 +344,19 @@
             this.pnlContent.Location = new System.Drawing.Point(319, 40);
             this.pnlContent.Margin = new System.Windows.Forms.Padding(10);
             this.pnlContent.Name = "pnlContent";
+            this.pnlContent.Padding = new System.Windows.Forms.Padding(10);
             this.pnlContent.Size = new System.Drawing.Size(665, 545);
             this.pnlContent.TabIndex = 3;
             // 
             // txtSolutionOutput
             // 
             this.txtSolutionOutput.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.txtSolutionOutput.Location = new System.Drawing.Point(0, 0);
+            this.txtSolutionOutput.Location = new System.Drawing.Point(10, 10);
             this.txtSolutionOutput.Margin = new System.Windows.Forms.Padding(0);
             this.txtSolutionOutput.Name = "txtSolutionOutput";
-            this.txtSolutionOutput.Size = new System.Drawing.Size(665, 545);
+            this.txtSolutionOutput.Size = new System.Drawing.Size(645, 525);
             this.txtSolutionOutput.TabIndex = 0;
             this.txtSolutionOutput.Text = "";
-            // 
-            // btnSolveGoldenSection
-            // 
-            this.btnSolveGoldenSection.BackColor = System.Drawing.Color.Gold;
-            this.tblUserControls.SetColumnSpan(this.btnSolveGoldenSection, 2);
-            this.btnSolveGoldenSection.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.btnSolveGoldenSection.FlatAppearance.BorderSize = 0;
-            this.btnSolveGoldenSection.FlatAppearance.MouseDownBackColor = System.Drawing.Color.Gray;
-            this.btnSolveGoldenSection.FlatAppearance.MouseOverBackColor = System.Drawing.Color.Silver;
-            this.btnSolveGoldenSection.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnSolveGoldenSection.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnSolveGoldenSection.ForeColor = System.Drawing.Color.White;
-            this.btnSolveGoldenSection.Location = new System.Drawing.Point(5, 510);
-            this.btnSolveGoldenSection.Margin = new System.Windows.Forms.Padding(5);
-            this.btnSolveGoldenSection.Name = "btnSolveGoldenSection";
-            this.btnSolveGoldenSection.Size = new System.Drawing.Size(299, 30);
-            this.btnSolveGoldenSection.TabIndex = 10;
-            this.btnSolveGoldenSection.Text = "Golden Section Search";
-            this.btnSolveGoldenSection.UseVisualStyleBackColor = false;
-            this.btnSolveGoldenSection.Click += new System.EventHandler(this.btnSolveGoldenSection_Click);
             // 
             // frmMainForm
             // 
