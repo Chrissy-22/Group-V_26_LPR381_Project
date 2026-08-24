@@ -20,6 +20,7 @@ namespace Group_V_26_LPR381_Project.Tests
             try
             {
                 VerifyLimpopoFixture();
+                VerifyUnsupportedMinimisationIsRejected();
                 Console.WriteLine("PASS: Limpopo Sensitivity Analysis golden fixture");
                 return 0;
             }
@@ -77,6 +78,14 @@ namespace Group_V_26_LPR381_Project.Tests
             AssertRhsRange(rhsRanges, 1, 48d, -24d, double.PositiveInfinity);
             AssertRhsRange(rhsRanges, 2, 20d, -4d, 4d);
             AssertRhsRange(rhsRanges, 3, 8d, -4d / 3d, 2d);
+        }
+
+        private static void VerifyUnsupportedMinimisationIsRejected()
+        {
+            var minimisation = LinearProgram.Parse("min + 1\n+ 1 <= 1\n+");
+            Solution rejected = new SensitivityAnalysis().Solve(minimisation);
+            AssertTrue("minimisation is rejected", rejected.Messages.Any(message =>
+                message.Contains("Sensitivity analysis currently accepts maximisation LPs only.")));
         }
 
         private static string FixturePath()
