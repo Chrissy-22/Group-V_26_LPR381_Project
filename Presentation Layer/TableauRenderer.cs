@@ -70,7 +70,9 @@ namespace Group_V_26_LPR381_Project.Presentation_Layer
             var cellText = new string[rows, cols];
             for (int i = 0; i < rows; i++)
                 for (int j = 0; j < cols; j++)
-                    cellText[i, j] = NumberFormatter.Format(tableau[i, j]);
+                    cellText[i, j] = double.IsNaN(tableau[i, j])
+                        ? "-"
+                        : NumberFormatter.Format(tableau[i, j]);
 
             string RowLabel(int i) => i == 0 ? "Z" : $"R{i}";
 

@@ -22,6 +22,8 @@ namespace Group_V_26_LPR381_Project.Presentation_Layer
         {
             InitializeComponent();
 
+            lblAlgorithmName.Text = "Programming Model Solver";
+
             txtSolutionOutput.WordWrap = false;
             txtSolutionOutput.ScrollBars = RichTextBoxScrollBars.Both;
 
@@ -285,9 +287,33 @@ namespace Group_V_26_LPR381_Project.Presentation_Layer
 
             try
             {
-                var program = LinearProgram.Parse(txtProblemInput.Text);
+                lblAlgorithmName.Text = "Primal Simplex Algorithm";
+
+                LinearProgram program;
+                double[] breakpoints = null;
+
+                if (NonLinearRouter.IsNonLinearInput(txtProblemInput.Text))
+                {
+                    var nlp = NonLinearRouter.Parse(txtProblemInput.Text);
+                    var pwl = NonLinearToLinearConverter.BuildPiecewiseLinearApproximation(
+                        nlp.Expression, nlp.LowerBound, nlp.UpperBound, nlp.Maximize, nlp.Segments);
+                    program = pwl.Program;
+                    breakpoints = pwl.Breakpoints;
+                }
+                else
+                {
+                    program = LinearProgram.Parse(txtProblemInput.Text);
+                }
+
                 var solver = new PrimalSimplex();
                 var solution = solver.Solve(program);
+
+                if (breakpoints != null)
+                {
+                    double xValue = NonLinearToLinearConverter.RecoverXValue(solution, breakpoints);
+                    solution.AddMessage("");
+                    solution.AddMessage($"Recovered non-linear solution: x = {NumberFormatter.Format(xValue)}, f(x) = {NumberFormatter.Format(solution.OptimalValue)}");
+                }
 
                 RenderSolution(solution);
             }
@@ -296,7 +322,6 @@ namespace Group_V_26_LPR381_Project.Presentation_Layer
                 MessageBox.Show($"Error solving problem: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
-
         }
 
         // Revised Primal Simplex
@@ -311,9 +336,34 @@ namespace Group_V_26_LPR381_Project.Presentation_Layer
 
             try
             {
-                var program = LinearProgram.Parse(txtProblemInput.Text);
+                lblAlgorithmName.Visible = true;
+                lblAlgorithmName.Text = "Revised Primal Simplex Algorithm";
+
+                LinearProgram program;
+                double[] breakpoints = null;
+
+                if (NonLinearRouter.IsNonLinearInput(txtProblemInput.Text))
+                {
+                    var nlp = NonLinearRouter.Parse(txtProblemInput.Text);
+                    var pwl = NonLinearToLinearConverter.BuildPiecewiseLinearApproximation(
+                        nlp.Expression, nlp.LowerBound, nlp.UpperBound, nlp.Maximize, nlp.Segments);
+                    program = pwl.Program;
+                    breakpoints = pwl.Breakpoints;
+                }
+                else
+                {
+                    program = LinearProgram.Parse(txtProblemInput.Text);
+                }
+
                 var solver = new RevisedPrimalSimplex();
                 var solution = solver.Solve(program);
+
+                if (breakpoints != null)
+                {
+                    double xValue = NonLinearToLinearConverter.RecoverXValue(solution, breakpoints);
+                    solution.AddMessage("");
+                    solution.AddMessage($"Recovered non-linear solution: x = {NumberFormatter.Format(xValue)}, f(x) = {NumberFormatter.Format(solution.OptimalValue)}");
+                }
 
                 RenderSolution(solution);
             }
@@ -336,11 +386,36 @@ namespace Group_V_26_LPR381_Project.Presentation_Layer
 
             try
             {
+                lblAlgorithmName.Visible = true;
+                lblAlgorithmName.Text = "Branch and Bound Simplex Algorithm";
+
                 btnSolveBranchAndBound.Enabled = false;
 
-                var program = LinearProgram.Parse(txtProblemInput.Text);
+                LinearProgram program;
+                double[] breakpoints = null;
+
+                if (NonLinearRouter.IsNonLinearInput(txtProblemInput.Text))
+                {
+                    var nlp = NonLinearRouter.Parse(txtProblemInput.Text);
+                    var pwl = NonLinearToLinearConverter.BuildPiecewiseLinearApproximation(
+                        nlp.Expression, nlp.LowerBound, nlp.UpperBound, nlp.Maximize, nlp.Segments);
+                    program = pwl.Program;
+                    breakpoints = pwl.Breakpoints;
+                }
+                else
+                {
+                    program = LinearProgram.Parse(txtProblemInput.Text);
+                }
+
                 var solver = new BranchAndBound();
                 var solution = await Task.Run(() => solver.Solve(program));
+
+                if (breakpoints != null)
+                {
+                    double xValue = NonLinearToLinearConverter.RecoverXValue(solution, breakpoints);
+                    solution.AddMessage("");
+                    solution.AddMessage($"Recovered non-linear solution: x = {NumberFormatter.Format(xValue)}, f(x) = {NumberFormatter.Format(solution.OptimalValue)}");
+                }
 
                 RenderSolution(solution);
             }
@@ -365,8 +440,18 @@ namespace Group_V_26_LPR381_Project.Presentation_Layer
                 return;
             }
 
+            if (NonLinearRouter.IsNonLinearInput(txtProblemInput.Text))
+            {
+                MessageBox.Show("The Knapsack algorithm doesn't apply to non-linear problems - use another algorithm or Golden Section Search.",
+                    "Not applicable", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
             try
             {
+                lblAlgorithmName.Visible = true;
+                lblAlgorithmName.Text = "Branch and Bound: Knapsack Algorithm";
+
                 btnSolveKnapsack.Enabled = false;
 
                 var program = LinearProgram.Parse(txtProblemInput.Text);
@@ -398,13 +483,37 @@ namespace Group_V_26_LPR381_Project.Presentation_Layer
 
             try
             {
+                lblAlgorithmName.Visible = true;
+                lblAlgorithmName.Text = "Cutting Plane Algorithm";
+
                 btnSolveCuttingPlane.Enabled = false;
                 txtSolutionOutput.Clear();
-                txtSolutionOutput.AppendText("Running Cutting Plane algorithm...\n\n");
 
-                var program = LinearProgram.Parse(txtProblemInput.Text);
+                LinearProgram program;
+                double[] breakpoints = null;
+
+                if (NonLinearRouter.IsNonLinearInput(txtProblemInput.Text))
+                {
+                    var nlp = NonLinearRouter.Parse(txtProblemInput.Text);
+                    var pwl = NonLinearToLinearConverter.BuildPiecewiseLinearApproximation(
+                        nlp.Expression, nlp.LowerBound, nlp.UpperBound, nlp.Maximize, nlp.Segments);
+                    program = pwl.Program;
+                    breakpoints = pwl.Breakpoints;
+                }
+                else
+                {
+                    program = LinearProgram.Parse(txtProblemInput.Text);
+                }
+
                 var solver = new LinearProgrammingSolver.Algorithms.CuttingPlane();
                 var solution = await Task.Run(() => solver.Solve(program));
+
+                if (breakpoints != null)
+                {
+                    double xValue = NonLinearToLinearConverter.RecoverXValue(solution, breakpoints);
+                    solution.AddMessage("");
+                    solution.AddMessage($"Recovered non-linear solution: x = {NumberFormatter.Format(xValue)}, f(x) = {NumberFormatter.Format(solution.OptimalValue)}");
+                }
 
                 RenderSolution(solution);
             }
@@ -422,6 +531,7 @@ namespace Group_V_26_LPR381_Project.Presentation_Layer
         // Sensitivity Analysis
         private void btnSolveSensitivityAnalysis_Click(object sender, EventArgs e)
         {
+            lblAlgorithmName.Visible = true;
             lblAlgorithmName.Text = "Sensitivity Analysis";
 
             if (string.IsNullOrWhiteSpace(txtProblemInput.Text))
@@ -470,6 +580,43 @@ namespace Group_V_26_LPR381_Project.Presentation_Layer
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+      
+
+        private void btnSolveGoldenSection_Click(object sender, EventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(txtProblemInput.Text))
+            {
+                MessageBox.Show("Please enter a non-linear problem first, e.g.\nnlp min x^2\n-5 5", "Warning",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (!NonLinearRouter.IsNonLinearInput(txtProblemInput.Text))
+            {
+                MessageBox.Show("Golden Section Search only applies to non-linear problems.\nUse the format:\nnlp min x^2\n-5 5",
+                    "Not applicable", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            try
+            {
+                lblAlgorithmName.Visible = true;
+                lblAlgorithmName.Text = "Golden Section Search";
+
+                var nlp = NonLinearRouter.Parse(txtProblemInput.Text);
+
+                var solver = new GoldenSectionSearch();
+                var solution = solver.Solve(nlp.Expression, nlp.LowerBound, nlp.UpperBound, nlp.Maximize);
+
+                RenderSolution(solution);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error solving problem: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
         #endregion
     }
 }

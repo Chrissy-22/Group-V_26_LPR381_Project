@@ -41,57 +41,35 @@ namespace LinearProgrammingSolver.Algorithms
             capacity = program.WeightConstraints[0].Capacity;
 
             Solution sol = new Solution();
-            var output = new StringBuilder();
-            output.AppendLine();
-            //output.AppendLine("Primal Simplex Solution");
-            output.AppendLine("Simplified Output");
-            output.AppendLine("Ratio Test");
+            //sol.AddMessage("Running Branch and Bound Knapsack algorithm...");
+            sol.AddMessage("");
 
-            // Initialize items with proper indexing
             items = new List<Item>(n);
             for (int i = 0; i < n; i++)
-            {
-                items.Add(new Item
-                {
-                    OriginalIndex = i + 1,
-                    Value = values[i],
-                    Weight = weights[i]
-                });
-            }
+                items.Add(new Item { OriginalIndex = i + 1, Value = values[i], Weight = weights[i] });
 
-            // Ratio Test - sorted by ratio descending
+            // Ratio test
+            sol.AddGroupHeader("Ratio Test", 0);
             var sortedItems = items.OrderByDescending(i => i.Ratio).ToList();
             int rank = 1;
             foreach (var item in sortedItems)
-            {
-                string ratioStr = item.Ratio.ToString("0.###").Replace(".", ",");
-                string spacing = GetRatioSpacing(item.OriginalIndex, item.Value, item.Weight, ratioStr);
-                output.AppendLine($"x{item.OriginalIndex} {item.Value}/{item.Weight} = {ratioStr}{spacing}Rank {rank++}");
-            }
-            output.AppendLine();
+                sol.AddMessage($"x{item.OriginalIndex}: {NumberFormatter.Format(item.Value)} / {NumberFormatter.Format(item.Weight)} = {NumberFormatter.Format(item.Ratio)}  (Rank {rank++})");
 
-            // Process Sub-problem 0 - LP relaxation
-            output.AppendLine("Sub-problem 0");
+            // Root relaxation
             var rootRelaxation = ComputeLPRelaxation(capacity, 0, 0, new bool?[n]);
-            DisplayLPRelaxation(output, new bool?[n], capacity, 0, 0, new List<(int, bool)>(), false);
+            sol.AddGroupHeader("Sub-problem 0", 0);
+            DisplayLPRelaxation(sol, new bool?[n], capacity, 0, 0, new List<(int, bool)>(), false);
 
             if (rootRelaxation.fractionalItem != null)
             {
-                output.AppendLine();
-                output.AppendLine($"Comment: Sub-problem 0 will be branched on x{rootRelaxation.fractionalItem.OriginalIndex} = 0 (Sub-problem 1) and x{rootRelaxation.fractionalItem.OriginalIndex} = 1 (Sub-problem 2)");
-                output.AppendLine();
+                sol.AddMessage("");
+                sol.AddMessage($"This sub-problem will be branched on x{rootRelaxation.fractionalItem.OriginalIndex}:");
+                sol.AddMessage($"  Branch 1: x{rootRelaxation.fractionalItem.OriginalIndex} = 0");
+                sol.AddMessage($"  Branch 2: x{rootRelaxation.fractionalItem.OriginalIndex} = 1");
             }
 
-            // Branch and Bound
             var queue = new Queue<Node>();
-            Node root = new Node
-            {
-                Weight = 0,
-                Value = 0,
-                Decisions = new bool?[n],
-                Id = "0",
-                Level = 0
-            };
+            var root = new Node { Weight = 0, Value = 0, Decisions = new bool?[n], Id = "0", Level = 0 };
             queue.Enqueue(root);
 
             double bestValue = double.NegativeInfinity;
@@ -99,40 +77,22 @@ namespace LinearProgrammingSolver.Algorithms
             var candidates = new List<(string Id, double Value, bool[] Decisions, string Label)>();
             char candidateLabel = 'A';
 
-            // Continue with branch and bound (skip root since already processed)
             while (queue.Count > 0)
             {
                 Node node = queue.Dequeue();
 
                 if (node.Id == "0")
                 {
-                    // Handle root branching
                     if (rootRelaxation.fractionalItem != null)
                     {
                         int branchIndex = items.FindIndex(it => it.OriginalIndex == rootRelaxation.fractionalItem.OriginalIndex);
 
-                        // Create skip branch (x = 0)
-                        var skipNode = new Node
-                        {
-                            Weight = 0,
-                            Value = 0,
-                            Decisions = new bool?[n],
-                            Id = "1",
-                            Level = 1
-                        };
+                        var skipNode = new Node { Weight = 0, Value = 0, Decisions = new bool?[n], Id = "1", Level = 1 };
                         skipNode.Decisions[branchIndex] = false;
                         skipNode.DecisionsMade.Add((branchIndex, false));
                         queue.Enqueue(skipNode);
 
-                        // Create take branch (x = 1)
-                        var takeNode = new Node
-                        {
-                            Weight = rootRelaxation.fractionalItem.Weight,
-                            Value = rootRelaxation.fractionalItem.Value,
-                            Decisions = new bool?[n],
-                            Id = "2",
-                            Level = 1
-                        };
+                        var takeNode = new Node { Weight = rootRelaxation.fractionalItem.Weight, Value = rootRelaxation.fractionalItem.Value, Decisions = new bool?[n], Id = "2", Level = 1 };
                         takeNode.Decisions[branchIndex] = true;
                         takeNode.DecisionsMade.Add((branchIndex, true));
                         queue.Enqueue(takeNode);
@@ -140,39 +100,28 @@ namespace LinearProgrammingSolver.Algorithms
                     continue;
                 }
 
-                // Check infeasibility
+                int depth = node.Id.Count(c => c == '.') + 1;
+
                 if (node.Weight > capacity)
                 {
-                    output.AppendLine($"Sub-problem {node.Id}");
-                    output.AppendLine("Comment: Infeasible");
-                    output.AppendLine();
+                    sol.AddGroupHeader($"Sub-problem {node.Id}", depth);
+                    sol.AddMessage("Result: INFEASIBLE (exceeds capacity). Pruned.");
                     continue;
                 }
 
-                // Compute LP relaxation for current node
                 var relaxation = ComputeLPRelaxation(capacity - node.Weight, node.Weight, node.Value, node.Decisions);
                 node.Bound = node.Value + relaxation.addedValue;
 
-                // Display current subproblem
-                string decisionsStr = string.Join(" ", node.DecisionsMade.Select(d => $"x{items[d.Index].OriginalIndex} = {(d.Take ? 1 : 0)}"));
-                if (string.IsNullOrEmpty(decisionsStr))
-                    output.AppendLine($"Sub-problem {node.Id}");
-                else
-                    output.AppendLine($"Sub-problem {node.Id}: {decisionsStr}");
+                string decisionsStr = string.Join(", ", node.DecisionsMade.Select(d => $"x{items[d.Index].OriginalIndex} = {(d.Take ? 1 : 0)}"));
+                sol.AddGroupHeader(string.IsNullOrEmpty(decisionsStr) ? $"Sub-problem {node.Id}" : $"Sub-problem {node.Id}: {decisionsStr}", depth);
 
-                DisplayLPRelaxation(output, node.Decisions, capacity, node.Weight, node.Value, node.DecisionsMade, true);
+                DisplayLPRelaxation(sol, node.Decisions, capacity, node.Weight, node.Value, node.DecisionsMade, true);
 
                 if (!relaxation.hasFraction)
                 {
-                    // Integer solution found
                     double totalValue = node.Value + relaxation.takenItems.Sum(i => i.Value);
                     bool[] fullDecisions = new bool[n];
-
-                    // Set decisions made so far
-                    for (int i = 0; i < n; i++)
-                        fullDecisions[i] = node.Decisions[i] ?? false;
-
-                    // Add remaining items taken in relaxation
+                    for (int i = 0; i < n; i++) fullDecisions[i] = node.Decisions[i] ?? false;
                     foreach (var item in relaxation.takenItems)
                     {
                         int idx = items.FindIndex(it => it.OriginalIndex == item.OriginalIndex);
@@ -180,11 +129,11 @@ namespace LinearProgrammingSolver.Algorithms
                     }
 
                     var takenItems = items.Where((item, j) => fullDecisions[j]).OrderBy(item => item.OriginalIndex);
-                    string valueStr = string.Join(" + ", takenItems.Select(item => item.Value.ToString("0")));
+                    string valueStr = string.Join(" + ", takenItems.Select(item => NumberFormatter.Format(item.Value)));
 
-                    output.AppendLine("Comment: Optimal solution available");
-                    output.AppendLine($"z = {valueStr} = {totalValue}");
-                    output.AppendLine($"Candidate {candidateLabel}");
+                    sol.AddMessage("");
+                    sol.AddMessage($"Result: INTEGER SOLUTION - z = {valueStr} = {NumberFormatter.Format(totalValue)}");
+                    sol.AddMessage($"Candidate {candidateLabel}");
 
                     candidates.Add((node.Id, totalValue, (bool[])fullDecisions.Clone(), candidateLabel.ToString()));
                     candidateLabel++;
@@ -194,95 +143,59 @@ namespace LinearProgrammingSolver.Algorithms
                         bestValue = totalValue;
                         bestSolution = (bool[])fullDecisions.Clone();
                     }
-                    output.AppendLine();
                     continue;
                 }
 
-                // Branch on fractional item
                 if (relaxation.fractionalItem != null && node.Level < n)
                 {
                     int branchIndex = items.FindIndex(it => it.OriginalIndex == relaxation.fractionalItem.OriginalIndex);
-                    if (branchIndex < 0 || node.Decisions[branchIndex].HasValue) continue; // Skip if already decided
+                    if (branchIndex < 0 || node.Decisions[branchIndex].HasValue) continue;
 
                     string skipId = $"{node.Id}.1";
                     string takeId = $"{node.Id}.2";
 
-                    output.AppendLine();
-                    output.AppendLine($"Comment: Sub-problem {node.Id} will be branched on x{relaxation.fractionalItem.OriginalIndex} = 0( Sub-problem {skipId}) and x{relaxation.fractionalItem.OriginalIndex} = 1 Sub-problem {takeId})");
-                    output.AppendLine();
+                    sol.AddMessage("");
+                    sol.AddMessage($"This sub-problem will be branched on x{relaxation.fractionalItem.OriginalIndex}:");
+                    sol.AddMessage($"  Branch {skipId}: x{relaxation.fractionalItem.OriginalIndex} = 0");
+                    sol.AddMessage($"  Branch {takeId}: x{relaxation.fractionalItem.OriginalIndex} = 1");
 
-                    // Create skip branch (x_i = 0)
-                    var skipNode = new Node
-                    {
-                        Weight = node.Weight,
-                        Value = node.Value,
-                        Decisions = (bool?[])node.Decisions.Clone(),
-                        Id = skipId,
-                        DecisionsMade = new List<(int, bool)>(node.DecisionsMade),
-                        Level = node.Level + 1
-                    };
+                    var skipNode = new Node { Weight = node.Weight, Value = node.Value, Decisions = (bool?[])node.Decisions.Clone(), Id = skipId, DecisionsMade = new List<(int, bool)>(node.DecisionsMade), Level = node.Level + 1 };
                     skipNode.DecisionsMade.Add((branchIndex, false));
                     skipNode.Decisions[branchIndex] = false;
                     queue.Enqueue(skipNode);
 
-                    // Create take branch (x_i = 1)
-                    var takeNode = new Node
-                    {
-                        Weight = node.Weight + relaxation.fractionalItem.Weight,
-                        Value = node.Value + relaxation.fractionalItem.Value,
-                        Decisions = (bool?[])node.Decisions.Clone(),
-                        Id = takeId,
-                        DecisionsMade = new List<(int, bool)>(node.DecisionsMade),
-                        Level = node.Level + 1
-                    };
+                    var takeNode = new Node { Weight = node.Weight + relaxation.fractionalItem.Weight, Value = node.Value + relaxation.fractionalItem.Value, Decisions = (bool?[])node.Decisions.Clone(), Id = takeId, DecisionsMade = new List<(int, bool)>(node.DecisionsMade), Level = node.Level + 1 };
                     takeNode.DecisionsMade.Add((branchIndex, true));
                     takeNode.Decisions[branchIndex] = true;
                     queue.Enqueue(takeNode);
                 }
             }
 
-            // Output comparison
-            output.AppendLine("COMPARISON OF CANDIDATES");
+            sol.AddGroupHeader("Comparison of Candidates", 0);
             foreach (var candidate in candidates)
             {
                 var takenItems = items.Where((item, j) => candidate.Decisions[j]).OrderBy(item => item.OriginalIndex);
-                string valueStr = string.Join(" + ", takenItems.Select(item => item.Value.ToString("0")));
-                output.AppendLine($"Candidate {candidate.Label}: z = {valueStr} = {candidate.Value}");
+                string valueStr = string.Join(" + ", takenItems.Select(item => NumberFormatter.Format(item.Value)));
+                sol.AddMessage($"Candidate {candidate.Label}: z = {valueStr} = {NumberFormatter.Format(candidate.Value)}");
             }
 
-            var bestCandidate = candidates.OrderByDescending(c => c.Value).First();
-            output.AppendLine($"Candidate {bestCandidate.Label} is the best candidate");
-            output.AppendLine();
-
-            // Final optimal solution
-            /*output.AppendLine("Optimal Solution:");
-            for (int i = 0; i < n; i++)
+            if (candidates.Any())
             {
-                output.AppendLine($"x{items[i].OriginalIndex} = {(bestSolution[i] ? 1.000 : 0.000).ToString("0.000").Replace(".", ",")}");
-            } 
-            output.AppendLine($"Optimal Value: {bestValue.ToString("0.000").Replace(".", ",")}"); */
+                var bestCandidate = candidates.OrderByDescending(c => c.Value).First();
+                sol.AddMessage("");
+                sol.AddMessage($"Candidate {bestCandidate.Label} is the best candidate.");
+            }
 
-            sol.AddStep("Primal Simplex Solution", output.ToString());
             sol.OptimalValue = bestValue;
             sol.VariableValues = items.ToDictionary(i => $"x{i.OriginalIndex}", i => bestSolution[items.IndexOf(i)] ? 1.0 : 0.0);
 
             return sol;
         }
 
-        private string GetRatioSpacing(int index, double value, double weight, string ratioStr)
-        {
-            // Calculate spacing to align "Rank" properly
-            int baseLength = $"x{index} {value}/{weight} = {ratioStr}".Length;
-            int targetLength = 40; // Approximate target for alignment
-            int spacesNeeded = Math.Max(1, targetLength - baseLength);
-            return new string(' ', spacesNeeded);
-        }
-
-        private void DisplayLPRelaxation(StringBuilder output, bool?[] decisions, double totalCapacity, double usedWeight, double currentValue, List<(int, bool)> decisionsMade, bool showFixed)
+        private void DisplayLPRelaxation(Solution sol, bool?[] decisions, double totalCapacity, double usedWeight, double currentValue, List<(int, bool)> decisionsMade, bool showFixed)
         {
             double remainingCapacity = totalCapacity - usedWeight;
 
-            // Show fixed decisions first (only for non-root nodes)
             if (showFixed)
             {
                 foreach (var decision in decisionsMade)
@@ -290,36 +203,33 @@ namespace LinearProgrammingSolver.Algorithms
                     Item item = items[decision.Item1];
                     if (decision.Item2)
                     {
-                        output.AppendLine($"∗ 𝑥{item.OriginalIndex} = 1 {totalCapacity}-{item.Weight}={totalCapacity - item.Weight}");
+                        sol.AddMessage($"  x{item.OriginalIndex} = 1   (capacity: {NumberFormatter.Format(totalCapacity)} - {NumberFormatter.Format(item.Weight)} = {NumberFormatter.Format(totalCapacity - item.Weight)})");
                         remainingCapacity = totalCapacity - item.Weight;
                         totalCapacity = remainingCapacity;
                     }
                     else
                     {
-                        output.AppendLine($"∗ 𝑥{item.OriginalIndex} = 0           {totalCapacity}-0={totalCapacity}");
+                        sol.AddMessage($"  x{item.OriginalIndex} = 0   (capacity unchanged: {NumberFormatter.Format(totalCapacity)})");
                     }
                 }
             }
 
-            // Show LP relaxation for undecided variables (sorted by ratio)
             var undecided = items.Where((item, index) => !decisions[index].HasValue).OrderByDescending(i => i.Ratio).ToList();
             foreach (var item in undecided)
             {
                 if (remainingCapacity <= 0)
                 {
-                    output.AppendLine($"𝑥{item.OriginalIndex} = 0");
+                    sol.AddMessage($"  x{item.OriginalIndex} = 0   (no capacity remaining)");
                 }
                 else if (item.Weight <= remainingCapacity)
                 {
-                    string spacing = showFixed ? "" : "              ";
-                    output.AppendLine($"𝑥{item.OriginalIndex} = 1{spacing}{remainingCapacity}-{item.Weight}={remainingCapacity - item.Weight}");
+                    sol.AddMessage($"  x{item.OriginalIndex} = 1   (capacity: {NumberFormatter.Format(remainingCapacity)} - {NumberFormatter.Format(item.Weight)} = {NumberFormatter.Format(remainingCapacity - item.Weight)})");
                     remainingCapacity -= item.Weight;
                 }
                 else
                 {
                     double fraction = remainingCapacity / item.Weight;
-                    string fractionStr = fraction.ToString("0.###").Replace(".", ",");
-                    output.AppendLine($"𝑥{item.OriginalIndex} = {fractionStr} {remainingCapacity}-{item.Weight}");
+                    sol.AddMessage($"  x{item.OriginalIndex} = {NumberFormatter.Format(fraction)}   (fractional: {NumberFormatter.Format(remainingCapacity)} / {NumberFormatter.Format(item.Weight)})");
                     remainingCapacity = 0;
                 }
             }
