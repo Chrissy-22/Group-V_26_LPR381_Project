@@ -345,6 +345,9 @@ namespace Group_V_26_LPR381_Project.Presentation_Layer
 
             lblHeaderSubtitle.Text =
                 description;
+
+            lblOutputTitle.Text =
+            "Solution Output";
         }
 
 
@@ -378,34 +381,280 @@ namespace Group_V_26_LPR381_Project.Presentation_Layer
                     );
             }
         }
-
-
         private void ShowWelcomeMessage()
         {
             txtSolutionOutput.Clear();
 
+            lblOutputTitle.Text = "Welcome";
+
+            txtSolutionOutput.BackColor =
+                Color.FromArgb(248, 250, 252);
+
+
+            // ========================================================
+            // MAIN TITLE
+            // ========================================================
+
+            txtSolutionOutput.SelectionAlignment =
+                HorizontalAlignment.Center;
+
+            txtSolutionOutput.SelectionIndent = 0;
+
             txtSolutionOutput.SelectionFont =
                 new Font(
-                    "Consolas",
-                    10F
+                    "Segoe UI",
+                    26F,
+                    FontStyle.Bold
                 );
 
             txtSolutionOutput.SelectionColor =
-                Color.FromArgb(
-                    30,
-                    41,
-                    59
-                );
+                Color.FromArgb(15, 23, 42);
 
             txtSolutionOutput.AppendText(
-                "Ready to solve." +
+                Environment.NewLine +
+                "OPTIMA" +
+                Environment.NewLine
+            );
+
+
+            // ========================================================
+            // SUBTITLE
+            // ========================================================
+
+            txtSolutionOutput.SelectionFont =
+                new Font(
+                    "Segoe UI",
+                    12F,
+                    FontStyle.Regular
+                );
+
+            txtSolutionOutput.SelectionColor =
+                Color.FromArgb(100, 116, 139);
+
+            txtSolutionOutput.AppendText(
+                "Linear Programming & Optimisation Solver" +
+                Environment.NewLine +
+                Environment.NewLine
+            );
+
+
+            // ========================================================
+            // READY MESSAGE
+            // ========================================================
+
+            txtSolutionOutput.SelectionFont =
+                new Font(
+                    "Segoe UI",
+                    11F,
+                    FontStyle.Bold
+                );
+
+            txtSolutionOutput.SelectionColor =
+                Color.FromArgb(37, 99, 235);
+
+            txtSolutionOutput.AppendText(
+                "READY TO SOLVE" +
+                Environment.NewLine
+            );
+
+
+            txtSolutionOutput.SelectionFont =
+                new Font(
+                    "Segoe UI",
+                    10F,
+                    FontStyle.Regular
+                );
+
+            txtSolutionOutput.SelectionColor =
+                Color.FromArgb(71, 85, 105);
+
+            txtSolutionOutput.AppendText(
+                "Enter a programming model or load one from a file, " +
+                "then select a solver method." +
                 Environment.NewLine +
                 Environment.NewLine +
-                "Enter or load a programming model " +
-                "and choose a solver method."
+                Environment.NewLine
+            );
+
+
+            // ========================================================
+            // QUICK START
+            // ========================================================
+
+            txtSolutionOutput.SelectionAlignment =
+                HorizontalAlignment.Left;
+
+            txtSolutionOutput.SelectionIndent =
+                80;
+
+            txtSolutionOutput.SelectionFont =
+                new Font(
+                    "Segoe UI",
+                    13F,
+                    FontStyle.Bold
+                );
+
+            txtSolutionOutput.SelectionColor =
+                Color.FromArgb(15, 23, 42);
+
+            txtSolutionOutput.AppendText(
+                "QUICK START" +
+                Environment.NewLine +
+                Environment.NewLine
+            );
+
+
+            // ========================================================
+            // STEPS
+            // ========================================================
+
+            AppendWelcomeStep(
+                "1",
+                "Enter or Load a Problem",
+                "Type your model in the Problem Input area, use Load, " +
+                "or click Sample for an example."
+            );
+
+
+            AppendWelcomeStep(
+                "2",
+                "Choose a Solver Method",
+                "Select Primal Simplex, Revised Simplex, Branch & Bound, " +
+                "Knapsack, Cutting Plane, Sensitivity Analysis, or Golden Section."
+            );
+
+
+            AppendWelcomeStep(
+                "3",
+                "Review the Solution",
+                "OPTIMA will display iterations, tableaux, pivot operations, " +
+                "decision variables, and the objective value."
+            );
+
+
+            AppendWelcomeStep(
+                "4",
+                "Export Your Results",
+                "Use Export Results to save the problem and solution " +
+                "to an Excel workbook."
+            );
+
+
+            // ========================================================
+            // FOOTER
+            // ========================================================
+
+            txtSolutionOutput.SelectionAlignment =
+                HorizontalAlignment.Center;
+
+            txtSolutionOutput.SelectionIndent =
+                0;
+
+            txtSolutionOutput.SelectionFont =
+                new Font(
+                    "Segoe UI",
+                    9F,
+                    FontStyle.Italic
+                );
+
+            txtSolutionOutput.SelectionColor =
+                Color.FromArgb(148, 163, 184);
+
+            txtSolutionOutput.AppendText(
+                Environment.NewLine +
+                "Select a solver method from the sidebar to begin."
+            );
+
+
+            // Return scroll position to the top.
+            txtSolutionOutput.SelectionStart =
+                0;
+
+            txtSolutionOutput.ScrollToCaret();
+        }
+
+
+        // ============================================================
+        // WELCOME SCREEN STEP
+        // ============================================================
+
+        private void AppendWelcomeStep(
+            string number,
+            string title,
+            string description)
+        {
+            // --------------------------------------------------------
+            // NUMBER
+            // --------------------------------------------------------
+
+            txtSolutionOutput.SelectionAlignment =
+                HorizontalAlignment.Left;
+
+            txtSolutionOutput.SelectionIndent =
+                80;
+
+            txtSolutionOutput.SelectionFont =
+                new Font(
+                    "Segoe UI",
+                    11F,
+                    FontStyle.Bold
+                );
+
+            txtSolutionOutput.SelectionColor =
+                Color.FromArgb(37, 99, 235);
+
+            txtSolutionOutput.AppendText(
+                number + ".  "
+            );
+
+
+            // --------------------------------------------------------
+            // TITLE
+            // --------------------------------------------------------
+
+            txtSolutionOutput.SelectionFont =
+                new Font(
+                    "Segoe UI",
+                    11F,
+                    FontStyle.Bold
+                );
+
+            txtSolutionOutput.SelectionColor =
+                Color.FromArgb(15, 23, 42);
+
+            txtSolutionOutput.AppendText(
+                title +
+                Environment.NewLine
+            );
+
+
+            // --------------------------------------------------------
+            // DESCRIPTION
+            // --------------------------------------------------------
+
+            txtSolutionOutput.SelectionIndent =
+                110;
+
+            txtSolutionOutput.SelectionFont =
+                new Font(
+                    "Segoe UI",
+                    9.5F,
+                    FontStyle.Regular
+                );
+
+            txtSolutionOutput.SelectionColor =
+                Color.FromArgb(100, 116, 139);
+
+            txtSolutionOutput.AppendText(
+                description +
+                Environment.NewLine +
+                Environment.NewLine
             );
         }
 
+        // ============================================================
+        // STATUS - READY
+        // ============================================================
 
         private void SetStatusReady()
         {
@@ -413,9 +662,17 @@ namespace Group_V_26_LPR381_Project.Presentation_Layer
                 "Ready";
 
             lblStatus.ForeColor =
-                MutedTextColor;
+                Color.FromArgb(
+                    148,
+                    163,
+                    184
+                );
         }
 
+
+        // ============================================================
+        // STATUS - WORKING
+        // ============================================================
 
         private void SetStatusWorking(
             string message)
@@ -430,9 +687,14 @@ namespace Group_V_26_LPR381_Project.Presentation_Layer
                     246
                 );
 
+            // Forces the label to update before a solver starts working.
             lblStatus.Refresh();
         }
 
+
+        // ============================================================
+        // STATUS - SUCCESS
+        // ============================================================
 
         private void SetStatusSuccess(
             string message)
@@ -475,6 +737,9 @@ namespace Group_V_26_LPR381_Project.Presentation_Layer
         private void RenderSolution(
             Solution solution)
         {
+            lblOutputTitle.Text =
+            "Solution Output";
+
             txtSolutionOutput.Clear();
 
 
