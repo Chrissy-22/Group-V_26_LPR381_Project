@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 
@@ -63,7 +64,7 @@ namespace Group_V_26_LPR381_Project.Models
                     throw new ArgumentException("Invalid sign '" + sign + "' in objective function");
 
                 double coefficient;
-                if (!double.TryParse(parts[i + 1], out coefficient))
+                if (!TryParseNumber(parts[i + 1], out coefficient))
                     throw new ArgumentException("Invalid coefficient value '" + parts[i + 1] + "'");
 
                 program.Variables.Add(new Variable
@@ -95,7 +96,7 @@ namespace Group_V_26_LPR381_Project.Models
                         if (sign != "+" && sign != "-")
                             throw new ArgumentException("Invalid sign '" + sign + "' in weight constraint");
 
-                        if (!double.TryParse(parts[i + 1], out double coeff))
+                        if (!TryParseNumber(parts[i + 1], out double coeff))
                             throw new ArgumentException("Invalid coefficient value '" + parts[i + 1] + "'");
 
                         wc.Coefficients.Add(sign == "+" ? coeff : -coeff);
@@ -105,7 +106,7 @@ namespace Group_V_26_LPR381_Project.Models
                     if (relationToken != "<=")
                         throw new ArgumentException("Knapsack constraint must be '<='");
 
-                    if (!double.TryParse(parts[program.Variables.Count * 2 + 2], out double capacity))
+                    if (!TryParseNumber(parts[program.Variables.Count * 2 + 2], out double capacity))
                         throw new ArgumentException("Invalid RHS in weight constraint");
 
                     wc.Capacity = capacity;
@@ -122,7 +123,7 @@ namespace Group_V_26_LPR381_Project.Models
                         throw new ArgumentException("Invalid sign '" + sign + "' in constraint coefficients");
 
                     double coeff;
-                    if (!double.TryParse(parts[i * 2 + 1], out coeff))
+                    if (!TryParseNumber(parts[i * 2 + 1], out coeff))
                         throw new ArgumentException("Invalid coefficient value '" + parts[i * 2 + 1] + "'");
 
                     constraint.Coefficients.Add((sign == "+") ? coeff : -coeff);
@@ -139,12 +140,20 @@ namespace Group_V_26_LPR381_Project.Models
                     throw new ArgumentException("Invalid constraint operator '" + relation + "'");
 
                 double rhs;
-                if (!double.TryParse(parts[program.Variables.Count * 2 + 1], out rhs))
+                if (!TryParseNumber(parts[program.Variables.Count * 2 + 1], out rhs))
                     throw new ArgumentException("Invalid RHS value '" + parts[program.Variables.Count * 2 + 1] + "'");
 
                 constraint.Rhs = rhs;
                 program.Constraints.Add(constraint);
             }
+        }
+
+        // Input files use '.' decimal separators, independent of the user's Windows locale.
+        // Keep the current-culture fallback for locally entered comma-decimal values.
+        private static bool TryParseNumber(string value, out double number)
+        {
+            return double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out number) ||
+                double.TryParse(value, NumberStyles.Float, CultureInfo.CurrentCulture, out number);
         }
 
         public class WeightConstraint

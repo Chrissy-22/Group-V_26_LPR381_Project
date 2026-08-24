@@ -8,6 +8,8 @@ namespace Group_V_26_LPR381_Project.Algorithms
 {
     /// <summary>
     /// Sensitivity calculations use the lecturer's c_j* = Zj - Cj convention.
+    /// The available basis snapshot is intentionally limited to maximisation LPs with
+    /// non-negative continuous variables, <= constraints, and non-negative RHS values.
     /// </summary>
     public class SensitivityAnalysis : ISolver
     {
@@ -21,6 +23,16 @@ namespace Group_V_26_LPR381_Project.Algorithms
                 return Failure(error);
 
             return BuildReport(snapshot);
+        }
+
+        // Solver failures are rendered like ordinary solver output so the UI can show the
+        // reason without depending on exception handling for unsupported LP forms.
+        private static Solution Failure(string message)
+        {
+            var solution = new Solution();
+            solution.AddGroupHeader("Sensitivity Analysis");
+            solution.AddMessage(message);
+            return solution;
         }
 
         /// <summary>

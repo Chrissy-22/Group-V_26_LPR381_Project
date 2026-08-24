@@ -422,6 +422,8 @@ namespace Group_V_26_LPR381_Project.Presentation_Layer
         // Sensitivity Analysis
         private void btnSolveSensitivityAnalysis_Click(object sender, EventArgs e)
         {
+            lblAlgorithmName.Text = "Sensitivity Analysis";
+
             if (string.IsNullOrWhiteSpace(txtProblemInput.Text))
             {
                 MessageBox.Show("Please load a problem first.", "Warning",
