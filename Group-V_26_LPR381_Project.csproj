@@ -101,6 +101,9 @@
     <Content Include="Data\Primal2.txt" />
     <Content Include="Data\RevisedSimplex1.txt" />
     <Content Include="Data\RevisedSimplex2.txt" />
+    <Content Include="Data\Sensitivity1.txt" />
+    <Content Include="Data\Sensitivity2.txt" />
+    <Content Include="Data\Sensitivity3.txt" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

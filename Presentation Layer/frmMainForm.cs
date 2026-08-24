@@ -422,7 +422,26 @@ namespace Group_V_26_LPR381_Project.Presentation_Layer
         // Sensitivity Analysis
         private void btnSolveSensitivityAnalysis_Click(object sender, EventArgs e)
         {
+            if (string.IsNullOrWhiteSpace(txtProblemInput.Text))
+            {
+                MessageBox.Show("Please load a problem first.", "Warning",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
 
+            try
+            {
+                var program = LinearProgram.Parse(txtProblemInput.Text);
+                var solver = new SensitivityAnalysis();
+                var solution = solver.Solve(program);
+
+                RenderSolution(solution);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error running sensitivity analysis: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         // Export

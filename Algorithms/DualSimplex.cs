@@ -20,12 +20,55 @@ namespace Group_V_26_LPR381_Project.Algorithms
         private int _excessCount;
         private int _artificialCount;
         private List<string> _auxiliaryVariableNames;
+        private List<int> _basisColumnIndices;
         private ConstraintHandler _constraintHandler;
         public int IterationCount { get; private set; }
 
         public DualSimplex()
         {
             _constraintHandler = new ConstraintHandler();
+        }
+
+        /// <summary>
+        /// Seeds constraint addition with a known optimal tableau. This keeps the lecturer's
+        /// add-constraint flow on the current basis instead of resolving the original LP.
+        /// </summary>
+        public void LoadOptimalTableau(LinearProgram program, double[,] tableau, int m,
+            int slackCount, int excessCount, int artificialCount,
+            List<string> auxiliaryVariableNames, List<int> basicColumnIndices)
+        {
+            if (program == null || tableau == null || auxiliaryVariableNames == null ||
+                basicColumnIndices == null)
+            {
+                throw new ArgumentNullException("A program, tableau, auxiliary names, and basis are required.");
+            }
+            if (m != program.Constraints.Count || basicColumnIndices.Count != m ||
+                tableau.GetLength(0) != m + 1 ||
+                tableau.GetLength(1) != program.Variables.Count + auxiliaryVariableNames.Count + 1)
+            {
+                throw new ArgumentException("The supplied optimal tableau does not match the program dimensions.");
+            }
+
+            for (int row = 0; row < m; row++)
+            {
+                int column = basicColumnIndices[row];
+                if (column < 0 || column >= tableau.GetLength(1) - 1 ||
+                    !IsUnitBasicColumn(tableau, column, row, m))
+                {
+                    throw new ArgumentException("The supplied basis is not canonical in tableau-row order.");
+                }
+            }
+
+            _program = program;
+            _matrix = (double[,])tableau.Clone();
+            _rows = _matrix.GetLength(0);
+            _cols = _matrix.GetLength(1);
+            _slackCount = slackCount;
+            _excessCount = excessCount;
+            _artificialCount = artificialCount;
+            _auxiliaryVariableNames = new List<string>(auxiliaryVariableNames);
+            _basisColumnIndices = new List<int>(basicColumnIndices);
+            IterationCount = 0;
         }
 
         public Solution Solve(LinearProgram program)
@@ -130,7 +173,9 @@ namespace Group_V_26_LPR381_Project.Algorithms
                 _program.Variables.Count,
                 _slackCount,
                 _excessCount,
-                _artificialCount);
+                _artificialCount,
+                _basisColumnIndices);
+            _basisColumnIndices = null;
 
             foreach (var message in result.Messages)
                 solution.AddMessage(message);
@@ -216,6 +261,7 @@ namespace Group_V_26_LPR381_Project.Algorithms
             _cols = _program.Variables.Count + _program.Constraints.Count + 1;
             _matrix = new double[_rows, _cols];
             _auxiliaryVariableNames = new List<string>();
+            _basisColumnIndices = null;
             _slackCount = 0;
             _excessCount = 0;
             _artificialCount = 0;
@@ -308,6 +354,21 @@ namespace Group_V_26_LPR381_Project.Algorithms
                     return i;
             }
             return -1;
+        }
+
+        private bool IsUnitBasicColumn(double[,] tableau, int column, int basisRow, int constraintCount)
+        {
+            if (Math.Abs(tableau[0, column]) > TOL)
+                return false;
+
+            for (int row = 0; row < constraintCount; row++)
+            {
+                double expected = row == basisRow ? 1.0 : 0.0;
+                if (Math.Abs(tableau[row + 1, column] - expected) > TOL)
+                    return false;
+            }
+
+            return true;
         }
 
         private bool HasArtificialInBasisWithPositiveValue()
@@ -580,6 +641,9 @@ namespace Group_V_26_LPR381_Project.Algorithms
             cloned._excessCount = this._excessCount;
             cloned._artificialCount = this._artificialCount;
             cloned._auxiliaryVariableNames = new List<string>(this._auxiliaryVariableNames);
+            cloned._basisColumnIndices = this._basisColumnIndices == null
+                ? null
+                : new List<int>(this._basisColumnIndices);
             cloned._program = this._program;
             return cloned;
         }
