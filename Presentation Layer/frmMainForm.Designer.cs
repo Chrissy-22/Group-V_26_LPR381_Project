@@ -153,7 +153,7 @@
             this.btnSolveGoldenSection.Name = "btnSolveGoldenSection";
             this.btnSolveGoldenSection.Size = new System.Drawing.Size(299, 30);
             this.btnSolveGoldenSection.TabIndex = 10;
-            this.btnSolveGoldenSection.Text = "Golden Section Search";
+            this.btnSolveGoldenSection.Text = "Non-Linear Problems";
             this.btnSolveGoldenSection.UseVisualStyleBackColor = false;
             this.btnSolveGoldenSection.Click += new System.EventHandler(this.btnSolveGoldenSection_Click);
             // 

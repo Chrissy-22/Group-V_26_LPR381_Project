@@ -294,6 +294,13 @@ namespace Group_V_26_LPR381_Project.Presentation_Layer
 
                 if (NonLinearRouter.IsNonLinearInput(txtProblemInput.Text))
                 {
+                    if (NonLinearRouter.IsMultiVariable(txtProblemInput.Text))
+                    {
+                        MessageBox.Show("Multi-variable non-linear problems (x1, x2, ...) aren't supported by this algorithm - use Steepest Ascent/Descent instead.",
+                            "Not applicable", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        return;
+                    }
+
                     var nlp = NonLinearRouter.Parse(txtProblemInput.Text);
                     var pwl = NonLinearToLinearConverter.BuildPiecewiseLinearApproximation(
                         nlp.Expression, nlp.LowerBound, nlp.UpperBound, nlp.Maximize, nlp.Segments);
@@ -344,6 +351,13 @@ namespace Group_V_26_LPR381_Project.Presentation_Layer
 
                 if (NonLinearRouter.IsNonLinearInput(txtProblemInput.Text))
                 {
+                    if (NonLinearRouter.IsMultiVariable(txtProblemInput.Text))
+                    {
+                        MessageBox.Show("Multi-variable non-linear problems (x1, x2, ...) aren't supported by this algorithm - use Steepest Ascent/Descent instead.",
+                            "Not applicable", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        return;
+                    }
+
                     var nlp = NonLinearRouter.Parse(txtProblemInput.Text);
                     var pwl = NonLinearToLinearConverter.BuildPiecewiseLinearApproximation(
                         nlp.Expression, nlp.LowerBound, nlp.UpperBound, nlp.Maximize, nlp.Segments);
@@ -393,9 +407,15 @@ namespace Group_V_26_LPR381_Project.Presentation_Layer
 
                 LinearProgram program;
                 double[] breakpoints = null;
-
                 if (NonLinearRouter.IsNonLinearInput(txtProblemInput.Text))
                 {
+                    if (NonLinearRouter.IsMultiVariable(txtProblemInput.Text))
+                    {
+                        MessageBox.Show("Multi-variable non-linear problems (x1, x2, ...) aren't supported by this algorithm - use Steepest Ascent/Descent instead.",
+                            "Not applicable", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        return;
+                    }
+
                     var nlp = NonLinearRouter.Parse(txtProblemInput.Text);
                     var pwl = NonLinearToLinearConverter.BuildPiecewiseLinearApproximation(
                         nlp.Expression, nlp.LowerBound, nlp.UpperBound, nlp.Maximize, nlp.Segments);
@@ -494,6 +514,13 @@ namespace Group_V_26_LPR381_Project.Presentation_Layer
 
                 if (NonLinearRouter.IsNonLinearInput(txtProblemInput.Text))
                 {
+                    if (NonLinearRouter.IsMultiVariable(txtProblemInput.Text))
+                    {
+                        MessageBox.Show("Multi-variable non-linear problems (x1, x2, ...) aren't supported by this algorithm - use Steepest Ascent/Descent instead.",
+                            "Not applicable", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        return;
+                    }
+
                     var nlp = NonLinearRouter.Parse(txtProblemInput.Text);
                     var pwl = NonLinearToLinearConverter.BuildPiecewiseLinearApproximation(
                         nlp.Expression, nlp.LowerBound, nlp.UpperBound, nlp.Maximize, nlp.Segments);
@@ -572,22 +599,37 @@ namespace Group_V_26_LPR381_Project.Presentation_Layer
 
             if (!NonLinearRouter.IsNonLinearInput(txtProblemInput.Text))
             {
-                MessageBox.Show("Golden Section Search only applies to non-linear problems.\nUse the format:\nnlp min x^2\n-5 5",
+                MessageBox.Show("This solver only applies to non-linear problems.\nUse the format:\nnlp min x^2\n-5 5\nor for multiple variables:\nnlp max x1^2*x2^2\n2 1",
                     "Not applicable", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
             try
             {
-                lblAlgorithmName.Visible = true;
-                lblAlgorithmName.Text = "Golden Section Search";
+                if (NonLinearRouter.IsMultiVariable(txtProblemInput.Text))
+                {
+                    lblAlgorithmName.Visible = true;
+                    lblAlgorithmName.Text = "Steepest Ascent / Descent Search";
 
-                var nlp = NonLinearRouter.Parse(txtProblemInput.Text);
+                    var mvInput = NonLinearRouter.ParseMultiVariable(txtProblemInput.Text);
 
-                var solver = new GoldenSectionSearch();
-                var solution = solver.Solve(nlp.Expression, nlp.LowerBound, nlp.UpperBound, nlp.Maximize);
+                    var solver = new SteepestAscentDescent();
+                    var solution = solver.Solve(mvInput.Expression, mvInput.StartingPoint, mvInput.Maximize);
 
-                RenderSolution(solution);
+                    RenderSolution(solution);
+                }
+                else
+                {
+                    lblAlgorithmName.Visible = true;
+                    lblAlgorithmName.Text = "Golden Section Search";
+
+                    var nlp = NonLinearRouter.Parse(txtProblemInput.Text);
+
+                    var solver = new GoldenSectionSearch();
+                    var solution = solver.Solve(nlp.Expression, nlp.LowerBound, nlp.UpperBound, nlp.Maximize);
+
+                    RenderSolution(solution);
+                }
             }
             catch (Exception ex)
             {
