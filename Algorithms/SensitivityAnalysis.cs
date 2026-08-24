@@ -72,6 +72,12 @@ namespace Group_V_26_LPR381_Project.Algorithms
             double[] prices = MultiplyRow(basicCosts, inverse);
             double[] reducedCosts = ReducedCosts(canonical, objective, prices);
 
+            if (basicValues.Any(value => value < -Tolerance))
+            {
+                error = "The recovered basis is infeasible because B^-1 b contains a negative value.";
+                return false;
+            }
+
             if (!IsIdentity(Multiply(basis, inverse)) ||
                 !Matches(tableau, inverse, canonical, basicValues, reducedCosts))
             {
@@ -180,8 +186,8 @@ namespace Group_V_26_LPR381_Project.Algorithms
                 return result;
             }
 
-            result.AddMessage("Negative transformed RHS: Dual Simplex restores feasibility " +
-                "from the current tableau.");
+            result.AddMessage("The current optimum violates the new constraint. " +
+                "The augmented tableau is resolved from the current basis.");
             var dual = new DualSimplex();
             dual.LoadOptimalTableau(program, snapshot.FinalTableau, program.Constraints.Count,
                 program.Constraints.Count, 0, 0,
@@ -191,6 +197,14 @@ namespace Group_V_26_LPR381_Project.Algorithms
 
             Solution updated = dual.AddConstraintAndResolve(constraint);
             CopyOutput(result, updated);
+            if (updated.Messages.Any(message => message.StartsWith("Problem is infeasible")))
+            {
+                result.OptimalValue = double.NaN;
+                result.VariableValues = new Dictionary<string, double>();
+                result.AddMessage("The added constraint makes the LP infeasible; no new optimum exists.");
+                return result;
+            }
+
             result.OptimalValue = updated.OptimalValue;
             result.VariableValues = updated.VariableValues;
             return result;

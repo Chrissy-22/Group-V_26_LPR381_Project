@@ -244,6 +244,15 @@ namespace Group_V_26_LPR381_Project.Algorithms
                 solution.AddIteration((double[,])_matrix.Clone(), $"After Primal Iteration {IterationCount}", pivotRow, pivotCol, GetColumnHeaders());
             }
 
+            // A positive artificial variable means that the added equality
+            // cannot be satisfied. Do not present its Big-M penalty as an
+            // objective value for a feasible LP.
+            if (HasArtificialInBasisWithPositiveValue())
+            {
+                solution.AddMessage("Problem is infeasible: an artificial variable remains basic at a positive value.");
+                return solution;
+            }
+
             solution.OptimalValue = GetObjectiveValue();
             solution.VariableValues = GetSolution();
             solution.AddStep("Final Tableau:", ToString());
@@ -426,7 +435,10 @@ namespace Group_V_26_LPR381_Project.Algorithms
                 if (_matrix[pivotRow, j] < -TOL)
                 {
                     double ratio = Math.Abs(_matrix[0, j] / _matrix[pivotRow, j]);
-                    if (ratio < minRatio && ratio > TOL)
+                    // A zero ratio is valid at a degenerate or alternate-optimal
+                    // basis. Ignoring it incorrectly reports a feasible added
+                    // constraint as infeasible.
+                    if (ratio < minRatio)
                     {
                         minRatio = ratio;
                         pivotCol = j;
@@ -470,7 +482,9 @@ namespace Group_V_26_LPR381_Project.Algorithms
                 if (_matrix[i, pivotCol] > TOL)
                 {
                     double ratio = _matrix[i, _cols - 1] / _matrix[i, pivotCol];
-                    if (ratio < minRatio && ratio > TOL)
+                    // The primal ratio test also permits a zero ratio, otherwise
+                    // a degenerate tableau cannot be restored after a dual pivot.
+                    if (ratio >= -TOL && ratio < minRatio)
                     {
                         minRatio = ratio;
                         pivotRow = i;

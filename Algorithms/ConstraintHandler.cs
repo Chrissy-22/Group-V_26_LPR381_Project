@@ -118,7 +118,7 @@ namespace Group_V_26_LPR381_Project.Algorithms
 
             result.Messages.Add($"Added new constraint with {newAuxVarName}");
 
-            result = FixBasicVariables(result, orderedBasicColumns);
+            result = FixBasicVariables(result, variableCount, orderedBasicColumns);
             result = FixNegativeAuxiliaryVariable(result);
 
             // Apply the Big-M penalty and eliminate the artificial column from the objective
@@ -152,6 +152,7 @@ namespace Group_V_26_LPR381_Project.Algorithms
 
         private ConstraintAdditionResult FixBasicVariables(
             ConstraintAdditionResult result,
+            int variableCount,
             IList<int> orderedBasicColumns)
         {
             int rows = result.NewTableau.GetLength(0);
@@ -159,36 +160,71 @@ namespace Group_V_26_LPR381_Project.Algorithms
             int newConstraintRow = rows - 1;
             int existingConstraintCount = rows - 2;
 
-            if (orderedBasicColumns != null)
+            if (orderedBasicColumns == null)
+                return FixBasicVariablesWithoutSnapshot(result, variableCount);
+
+            if (orderedBasicColumns.Count != existingConstraintCount)
+                throw new InvalidOperationException("The supplied ordered basis does not match the tableau rows.");
+
+            for (int basisPosition = 0; basisPosition < orderedBasicColumns.Count; basisPosition++)
             {
-                if (orderedBasicColumns.Count != existingConstraintCount)
-                    throw new InvalidOperationException("The supplied ordered basis does not match the tableau rows.");
-
-                for (int basisPosition = 0; basisPosition < orderedBasicColumns.Count; basisPosition++)
+                int basicRow = basisPosition + 1;
+                int basicColumn = orderedBasicColumns[basisPosition];
+                if (basicColumn < 0 || basicColumn >= cols - 2 ||
+                    !IsUnitBasicColumn(result.NewTableau, basicColumn, basicRow,
+                        existingConstraintCount))
                 {
-                    int basicRow = basisPosition + 1;
-                    int basicColumn = orderedBasicColumns[basisPosition];
-                    if (basicColumn < 0 || basicColumn >= cols - 2 ||
-                        !IsUnitBasicColumn(result.NewTableau, basicColumn, basicRow,
-                            existingConstraintCount))
-                    {
-                        throw new InvalidOperationException("A supplied basis column is not canonical.");
-                    }
-
-                    EliminateBasicVariable(result, newConstraintRow, basicRow, basicColumn);
+                    throw new InvalidOperationException("A supplied basis column is not canonical.");
                 }
-                return result;
-            }
 
-            // Existing callers do not provide a snapshot. Detect all canonical columns,
-            // including slacks/excess variables, instead of only decision variables.
-            for (int varCol = 0; varCol < cols - 2; varCol++)
+                EliminateBasicVariable(result, newConstraintRow, basicRow, basicColumn);
+            }
+            return result;
+        }
+
+        private ConstraintAdditionResult FixBasicVariablesWithoutSnapshot(
+            ConstraintAdditionResult result, int variableCount)
+        {
+            int rows = result.NewTableau.GetLength(0);
+            int cols = result.NewTableau.GetLength(1);
+            int newConstraintRow = rows - 1;
+
+            // Preserve the existing fallback behavior for callers that do not provide a
+            // basis snapshot. Sensitivity Analysis always supplies an ordered basis above.
+            for (int varCol = 0; varCol < variableCount; varCol++)
             {
-                int basicRow = FindUniqueBasicRow(
-                    result.NewTableau, varCol, existingConstraintCount);
-                if (basicRow != -1)
+                int basicRow = -1;
+                for (int i = 1; i < rows - 1; i++)
                 {
-                    EliminateBasicVariable(result, newConstraintRow, basicRow, varCol);
+                    if (Math.Abs(result.NewTableau[i, varCol] - 1.0) < TOL)
+                    {
+                        bool isBasic = true;
+                        for (int k = 0; k < rows - 1; k++)
+                        {
+                            if (k != i && k != 0 && Math.Abs(result.NewTableau[k, varCol]) > TOL)
+                            {
+                                isBasic = false;
+                                break;
+                            }
+                        }
+
+                        if (isBasic)
+                        {
+                            basicRow = i;
+                            break;
+                        }
+                    }
+                }
+
+                if (basicRow != -1 && Math.Abs(result.NewTableau[newConstraintRow, varCol]) > TOL)
+                {
+                    result.Messages.Add($"Basic variable x{varCol + 1} was basic in row {basicRow + 1}, but now has coefficient " +
+                        $"{NumberFormatter.Format(result.NewTableau[newConstraintRow, varCol])} in new constraint. Fixing by subtracting row {basicRow + 1} - new constraint.");
+
+                    for (int j = 0; j < cols; j++)
+                    {
+                        result.NewTableau[newConstraintRow, j] = result.NewTableau[basicRow, j] - result.NewTableau[newConstraintRow, j];
+                    }
                 }
             }
 
@@ -221,22 +257,6 @@ namespace Group_V_26_LPR381_Project.Algorithms
                     return false;
             }
             return true;
-        }
-
-        private int FindUniqueBasicRow(double[,] tableau, int column,
-            int existingConstraintCount)
-        {
-            int basicRow = -1;
-            for (int row = 1; row <= existingConstraintCount; row++)
-            {
-                if (!IsUnitBasicColumn(tableau, column, row, existingConstraintCount))
-                    continue;
-
-                if (basicRow != -1)
-                    return -1;
-                basicRow = row;
-            }
-            return basicRow;
         }
 
         private ConstraintAdditionResult FixNegativeAuxiliaryVariable(ConstraintAdditionResult result)
