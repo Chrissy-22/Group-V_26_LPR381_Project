@@ -142,15 +142,15 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="Data\Assignment 1.txt" />
-    <Content Include="Data\Binary1.txt" />
-    <Content Include="Data\Binary2.txt" />
-    <Content Include="Data\Binary3.txt" />
-    <Content Include="Data\Multi-variable NLP 1.txt" />
-    <Content Include="Data\Multi-variable NLP 2.txt" />
-    <Content Include="Data\Non-Linear Problem 1.txt" />
-    <Content Include="Data\Non-Linear Problem 2.txt" />
-    <Content Include="Data\Non-Linear Problem 3.txt" />
-    <Content Include="Data\Non-Linear Problem 4.txt" />
+    <Content Include="Data\Project Example.txt" />
+    <Content Include="Data\BranchandBound1.txt" />
+    <Content Include="Data\BranchandBound2.txt" />
+    <Content Include="Data\Knapsack1.txt" />
+    <Content Include="Data\Knapsack2.txt" />
+    <Content Include="Data\CuttingPlane1.txt" />
+    <Content Include="Data\CuttingPlane2.txt" />
+    <Content Include="Data\GodenSection1.txt" />
+    <Content Include="Data\GoldenSection2.txt" />
     <Content Include="Data\Primal1.txt" />
     <Content Include="Data\Primal2.txt" />
     <Content Include="Data\RevisedSimplex1.txt" />
@@ -159,6 +159,8 @@
     <Content Include="Data\Sensitivity2.txt" />
     <Content Include="Data\Sensitivity3.txt" />
     <Content Include="Data\SensitivityLimpopoGolden.txt" />
+    <Content Include="Data\Steepest1.txt" />
+    <Content Include="Data\Steepest2.txt" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

@@ -1652,6 +1652,23 @@ namespace Group_V_26_LPR381_Project.Presentation_Layer
                 return;
             }
 
+
+            if (
+                NonLinearRouter.IsNonLinearInput(
+                    txtProblemInput.Text))
+            {
+                MessageBox.Show(
+                    "Sensitivity Analysis does not apply " +
+                    "to non-linear problems.",
+                    "Not Applicable",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information
+                );
+
+                return;
+            }
+
+
             SelectAlgorithm(
                 btnSolveSensitivityAnalysis,
                 "Sensitivity Analysis",
@@ -1659,24 +1676,63 @@ namespace Group_V_26_LPR381_Project.Presentation_Layer
             );
 
 
-            lblStatus.Text =
-                "Sensitivity Analysis selected";
+            SetStatusWorking(
+                "Running Sensitivity Analysis..."
+            );
+
 
             btnSolveSensitivityAnalysis.Enabled =
                 false;
 
+
             try
             {
-                var program = LinearProgram.Parse(txtProblemInput.Text);
-                var solver = new SensitivityAnalysis();
-                var solution = solver.Solve(program);
+                var program =
+                    LinearProgram.Parse(
+                        txtProblemInput.Text
+                    );
 
-                RenderSolution(solution);
+
+                var solver =
+                    new SensitivityAnalysis();
+
+
+                var solution =
+                    solver.Solve(
+                        program
+                    );
+
+
+                RenderSolution(
+                    solution
+                );
+
+
+                SetStatusSuccess(
+                    "Sensitivity Analysis complete"
+                );
             }
+
             catch (Exception ex)
             {
-                MessageBox.Show($"Error running sensitivity analysis: {ex.Message}", "Error",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                SetStatusError(
+                    "Sensitivity Analysis failed"
+                );
+
+
+                MessageBox.Show(
+                    "Error running sensitivity analysis: " +
+                    ex.Message,
+                    "Solver Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error
+                );
+            }
+
+            finally
+            {
+                btnSolveSensitivityAnalysis.Enabled =
+                    true;
             }
         }
 
