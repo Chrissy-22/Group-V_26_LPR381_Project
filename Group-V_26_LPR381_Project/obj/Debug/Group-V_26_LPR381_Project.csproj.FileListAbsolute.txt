@@ -1,0 +1,10 @@
+C:\Users\BC-STUDENT\source\repos\Group-V_26_LPR381_Project\obj\Debug\Group-V_26_LPR381_Project.csproj.AssemblyReference.cache
+C:\Users\BC-STUDENT\source\repos\Group-V_26_LPR381_Project\obj\Debug\Group_V_26_LPR381_Project.Presentation_Layer.frmMainForm.resources
+C:\Users\BC-STUDENT\source\repos\Group-V_26_LPR381_Project\obj\Debug\Group_V_26_LPR381_Project.Properties.Resources.resources
+C:\Users\BC-STUDENT\source\repos\Group-V_26_LPR381_Project\obj\Debug\Group-V_26_LPR381_Project.csproj.GenerateResource.cache
+C:\Users\BC-STUDENT\source\repos\Group-V_26_LPR381_Project\obj\Debug\Group-V_26_LPR381_Project.csproj.CoreCompileInputs.cache
+C:\Users\BC-STUDENT\source\repos\Group-V_26_LPR381_Project\bin\Debug\Group-V_26_LPR381_Project.exe.config
+C:\Users\BC-STUDENT\source\repos\Group-V_26_LPR381_Project\bin\Debug\Group-V_26_LPR381_Project.exe
+C:\Users\BC-STUDENT\source\repos\Group-V_26_LPR381_Project\bin\Debug\Group-V_26_LPR381_Project.pdb
+C:\Users\BC-STUDENT\source\repos\Group-V_26_LPR381_Project\obj\Debug\Group-V_26_LPR381_Project.exe
+C:\Users\BC-STUDENT\source\repos\Group-V_26_LPR381_Project\obj\Debug\Group-V_26_LPR381_Project.pdb
