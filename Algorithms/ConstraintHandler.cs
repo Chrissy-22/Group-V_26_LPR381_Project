@@ -35,7 +35,8 @@ namespace Group_V_26_LPR381_Project.Algorithms
             int variableCount,
             int slackCount,
             int excessCount,
-            int artificialCount)
+            int artificialCount,
+            IList<int> orderedBasicColumns = null)
         {
             var result = new ConstraintAdditionResult();
 
@@ -117,7 +118,7 @@ namespace Group_V_26_LPR381_Project.Algorithms
 
             result.Messages.Add($"Added new constraint with {newAuxVarName}");
 
-            result = FixBasicVariables(result, variableCount);
+            result = FixBasicVariables(result, variableCount, orderedBasicColumns);
             result = FixNegativeAuxiliaryVariable(result);
 
             // Apply the Big-M penalty and eliminate the artificial column from the objective
@@ -149,12 +150,47 @@ namespace Group_V_26_LPR381_Project.Algorithms
             return result;
         }
 
-        private ConstraintAdditionResult FixBasicVariables(ConstraintAdditionResult result, int variableCount)
+        private ConstraintAdditionResult FixBasicVariables(
+            ConstraintAdditionResult result,
+            int variableCount,
+            IList<int> orderedBasicColumns)
+        {
+            int rows = result.NewTableau.GetLength(0);
+            int cols = result.NewTableau.GetLength(1);
+            int newConstraintRow = rows - 1;
+            int existingConstraintCount = rows - 2;
+
+            if (orderedBasicColumns == null)
+                return FixBasicVariablesWithoutSnapshot(result, variableCount);
+
+            if (orderedBasicColumns.Count != existingConstraintCount)
+                throw new InvalidOperationException("The supplied ordered basis does not match the tableau rows.");
+
+            for (int basisPosition = 0; basisPosition < orderedBasicColumns.Count; basisPosition++)
+            {
+                int basicRow = basisPosition + 1;
+                int basicColumn = orderedBasicColumns[basisPosition];
+                if (basicColumn < 0 || basicColumn >= cols - 2 ||
+                    !IsUnitBasicColumn(result.NewTableau, basicColumn, basicRow,
+                        existingConstraintCount))
+                {
+                    throw new InvalidOperationException("A supplied basis column is not canonical.");
+                }
+
+                EliminateBasicVariable(result, newConstraintRow, basicRow, basicColumn);
+            }
+            return result;
+        }
+
+        private ConstraintAdditionResult FixBasicVariablesWithoutSnapshot(
+            ConstraintAdditionResult result, int variableCount)
         {
             int rows = result.NewTableau.GetLength(0);
             int cols = result.NewTableau.GetLength(1);
             int newConstraintRow = rows - 1;
 
+            // Preserve the existing fallback behavior for callers that do not provide a
+            // basis snapshot. Sensitivity Analysis always supplies an ordered basis above.
             for (int varCol = 0; varCol < variableCount; varCol++)
             {
                 int basicRow = -1;
@@ -193,6 +229,34 @@ namespace Group_V_26_LPR381_Project.Algorithms
             }
 
             return result;
+        }
+
+        private void EliminateBasicVariable(ConstraintAdditionResult result,
+            int newConstraintRow, int basicRow, int basicColumn)
+        {
+            double factor = result.NewTableau[newConstraintRow, basicColumn];
+            if (Math.Abs(factor) <= TOL)
+                return;
+
+            result.Messages.Add("Eliminated current basic column " + (basicColumn + 1) +
+                " from the added constraint.");
+            for (int column = 0; column < result.NewTableau.GetLength(1); column++)
+            {
+                result.NewTableau[newConstraintRow, column] -=
+                    factor * result.NewTableau[basicRow, column];
+            }
+        }
+
+        private bool IsUnitBasicColumn(double[,] tableau, int column, int basicRow,
+            int existingConstraintCount)
+        {
+            for (int row = 1; row <= existingConstraintCount; row++)
+            {
+                double expected = row == basicRow ? 1.0 : 0.0;
+                if (Math.Abs(tableau[row, column] - expected) > TOL)
+                    return false;
+            }
+            return true;
         }
 
         private ConstraintAdditionResult FixNegativeAuxiliaryVariable(ConstraintAdditionResult result)
