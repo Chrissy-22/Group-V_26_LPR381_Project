@@ -1,0 +1,3 @@
+max + 10 + 40 + 30 + 50
+weight + 5 + 4 + 6 + 3 <= 10
+bin bin bin bin

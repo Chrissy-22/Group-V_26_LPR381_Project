@@ -22,7 +22,17 @@ namespace Group_V_26_LPR381_Project.Algorithms
             if (!TryCreateBasisSnapshot(program, out snapshot, out error))
                 return Failure(error);
 
-            return BuildReport(snapshot);
+            var solution = BuildReport(snapshot);
+
+            solution.AddGroupHeader("Editable Model (Add a New Constraint or Activity)", 1);
+            solution.AddMessage("Copy the block below into the Problem Input box. To add a new CONSTRAINT,\n" +
+                "insert a new line above the sign-restrictions line (e.g. \"+ 1 + 0 + 0 <= 5\" for x1 <= 5).\n" +
+                "To add a new ACTIVITY, append a new sign/value pair to the objective line, one matching\n" +
+                "coefficient to every constraint line, and one sign token to the sign-restrictions line.\n" +
+                "Then re-solve with any algorithm button to get the updated optimum.\n");
+            solution.AddStep("Problem Input", FormatAsParseableInput(program));
+
+            return solution;
         }
 
         // Solver failures are rendered like ordinary solver output so the UI can show the
@@ -629,6 +639,58 @@ namespace Group_V_26_LPR381_Project.Algorithms
             }
             return builder.ToString().TrimEnd();
         }
+
+        private static string FormatAsParseableInput(LinearProgram program)
+        {
+            var lines = new List<string>();
+
+            var objective = new StringBuilder(program.IsMaximization ? "max" : "min");
+            foreach (var variable in program.Variables)
+            {
+                objective.Append(' ').Append(variable.Coefficient >= 0 ? "+" : "-")
+                    .Append(' ').Append(NumberFormatter.Format(Math.Abs(variable.Coefficient)));
+            }
+            lines.Add(objective.ToString());
+
+            foreach (var constraint in program.Constraints)
+            {
+                var line = new StringBuilder();
+                for (int i = 0; i < constraint.Coefficients.Count; i++)
+                {
+                    double coeff = constraint.Coefficients[i];
+                    line.Append(coeff >= 0 ? "+" : "-").Append(' ')
+                        .Append(NumberFormatter.Format(Math.Abs(coeff))).Append(' ');
+                }
+                string relation = constraint.Relation == LinearProgram.Relation.LessThanOrEqual ? "<="
+                    : constraint.Relation == LinearProgram.Relation.GreaterThanOrEqual ? ">=" : "=";
+                line.Append(relation).Append(' ').Append(NumberFormatter.Format(constraint.Rhs));
+                lines.Add(line.ToString());
+            }
+
+            var signs = new StringBuilder();
+            for (int i = 0; i < program.Variables.Count; i++)
+            {
+                if (i > 0) signs.Append(' ');
+                signs.Append(SignRestrictionToken(program.Variables[i].Type));
+            }
+            lines.Add(signs.ToString());
+
+            return string.Join(Environment.NewLine, lines);
+        }
+
+        private static string SignRestrictionToken(LinearProgram.VariableType type)
+        {
+            switch (type)
+            {
+                case LinearProgram.VariableType.NonNegative: return "+";
+                case LinearProgram.VariableType.NonPositive: return "-";
+                case LinearProgram.VariableType.Unrestricted: return "urs";
+                case LinearProgram.VariableType.Integer: return "int";
+                case LinearProgram.VariableType.Binary: return "bin";
+                default: return "+";
+            }
+        }
+
 
         private static string FormatAddedRow(LinearProgram program,
             LinearProgram.Constraint constraint, BasisSnapshot snapshot)

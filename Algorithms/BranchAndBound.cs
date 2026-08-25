@@ -218,9 +218,9 @@ namespace Group_V_26_LPR381_Project.Algorithms
         // =============================================================
 
         private List<SubProblem> ProcessSubProblem(
-            SubProblem current,
-            Solution mainSolution,
-            LinearProgram originalProgram)
+    SubProblem current,
+    Solution mainSolution,
+    LinearProgram originalProgram)
         {
             var children = new List<SubProblem>();
 
@@ -242,6 +242,14 @@ namespace Group_V_26_LPR381_Project.Algorithms
                 mainSolution.AddMessage(
                     $"Branch constraint: {current.BranchConstraint}"
                 );
+
+                if (!string.IsNullOrWhiteSpace(current.SiblingPath))
+                {
+                    mainSolution.AddMessage(
+                        $"(Paired with Sub-problem {current.SiblingPath}: " +
+                        $"{current.SiblingBranchConstraint})"
+                    );
+                }
 
                 mainSolution.AddMessage("");
             }
@@ -432,18 +440,36 @@ namespace Group_V_26_LPR381_Project.Algorithms
 
             mainSolution.AddMessage("");
 
+            // Paths are computed up front so the branching summary below can name
+            // both destinations together, instead of only mentioning the first.
+            string lowerPath =
+                string.IsNullOrEmpty(current.Path) ||
+                current.Path == "0"
+                    ? "1"
+                    : current.Path + ".1";
+
+            string upperPath =
+                string.IsNullOrEmpty(current.Path) ||
+                current.Path == "0"
+                    ? "2"
+                    : current.Path + ".2";
+
+            string lowerConstraintText =
+                $"{variableName} <= {NumberFormatter.Format(floorValue)}";
+
+            string upperConstraintText =
+                $"{variableName} >= {NumberFormatter.Format(ceilValue)}";
+
             mainSolution.AddMessage(
-                "This sub-problem will be branched on:"
+                "This sub-problem will be branched into two children:"
             );
 
             mainSolution.AddMessage(
-                $"  {variableName} <= " +
-                $"{NumberFormatter.Format(floorValue)}"
+                $"  Sub-problem {lowerPath}: {lowerConstraintText}"
             );
 
             mainSolution.AddMessage(
-                $"  {variableName} >= " +
-                $"{NumberFormatter.Format(ceilValue)}"
+                $"  Sub-problem {upperPath}: {upperConstraintText}"
             );
 
             mainSolution.AddMessage("");
@@ -451,12 +477,6 @@ namespace Group_V_26_LPR381_Project.Algorithms
             // ---------------------------------------------------------
             // CREATE LOWER BRANCH
             // ---------------------------------------------------------
-
-            string lowerPath =
-                string.IsNullOrEmpty(current.Path) ||
-                current.Path == "0"
-                    ? "1"
-                    : current.Path + ".1";
 
             try
             {
@@ -485,16 +505,9 @@ namespace Group_V_26_LPR381_Project.Algorithms
                         Solution = lowerSolution,
                         Path = lowerPath,
                         Level = current.Level + 1,
-
-                        BranchConstraint =
-                            $"{variableName} <= " +
-                            $"{NumberFormatter.Format(floorValue)}",
-
-                        ParentBranchVariable =
-                            variableName,
-
-                        ParentBranchValue =
-                            floorValue
+                        BranchConstraint = lowerConstraintText,
+                        ParentBranchVariable = variableName,
+                        ParentBranchValue = floorValue
                     }
                 );
             }
@@ -509,12 +522,6 @@ namespace Group_V_26_LPR381_Project.Algorithms
             // ---------------------------------------------------------
             // CREATE UPPER BRANCH
             // ---------------------------------------------------------
-
-            string upperPath =
-                string.IsNullOrEmpty(current.Path) ||
-                current.Path == "0"
-                    ? "2"
-                    : current.Path + ".2";
 
             try
             {
@@ -543,16 +550,9 @@ namespace Group_V_26_LPR381_Project.Algorithms
                         Solution = upperSolution,
                         Path = upperPath,
                         Level = current.Level + 1,
-
-                        BranchConstraint =
-                            $"{variableName} >= " +
-                            $"{NumberFormatter.Format(ceilValue)}",
-
-                        ParentBranchVariable =
-                            variableName,
-
-                        ParentBranchValue =
-                            ceilValue
+                        BranchConstraint = upperConstraintText,
+                        ParentBranchVariable = variableName,
+                        ParentBranchValue = ceilValue
                     }
                 );
             }
@@ -564,12 +564,23 @@ namespace Group_V_26_LPR381_Project.Algorithms
                 );
             }
 
+            // Link the pair together so each child's header can reference the other,
+            // even though DFS means they won't print near each other in the output.
+            if (children.Count == 2)
+            {
+                children[0].SiblingPath = children[1].Path;
+                children[0].SiblingBranchConstraint = children[1].BranchConstraint;
+                children[1].SiblingPath = children[0].Path;
+                children[1].SiblingBranchConstraint = children[0].BranchConstraint;
+            }
+
             // ---------------------------------------------------------
             // NEXT SUB-PROBLEM
             // ---------------------------------------------------------
 
             mainSolution.AddMessage(
-                $"Next sub-problem: {lowerPath}"
+                $"Sub-problem {lowerPath} will be explored first (depth-first); " +
+                $"Sub-problem {upperPath} follows once {lowerPath}'s branch is fully resolved."
             );
 
             mainSolution.AddMessage("");
@@ -1047,33 +1058,23 @@ namespace Group_V_26_LPR381_Project.Algorithms
 
             public Solution Solution { get; set; }
 
-            /// <summary>
-            /// Branch path.
-            ///
-            /// 0     = root
-            /// 1     = x <= floor
-            /// 2     = x >= ceil
-            /// 1.1   = first child of branch 1
-            /// 1.2   = second child of branch 1
-            /// </summary>
             public string Path { get; set; }
 
             public int Level { get; set; }
 
-            /// <summary>
-            /// The constraint that created this sub-problem.
-            /// </summary>
             public string BranchConstraint { get; set; }
 
-            /// <summary>
-            /// Variable used to create this branch.
-            /// </summary>
             public string ParentBranchVariable { get; set; }
 
-            /// <summary>
-            /// Floor/ceiling value used for this branch.
-            /// </summary>
             public double? ParentBranchValue { get; set; }
+
+            /// <summary>Path of this sub-problem's sibling (the other branch created
+            /// from the same parent), so its header can reference where its pair
+            /// went even though DFS means the sibling won't print nearby.</summary>
+            public string SiblingPath { get; set; }
+
+            /// <summary>The sibling's branch constraint, shown alongside SiblingPath.</summary>
+            public string SiblingBranchConstraint { get; set; }
         }
     }
 }
