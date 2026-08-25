@@ -50,14 +50,23 @@
     <Compile Include="Algorithms\ConstraintHandler.cs" />
     <Compile Include="Algorithms\CuttingPlane.cs" />
     <Compile Include="Algorithms\DualSimplex.cs" />
+    <Compile Include="Algorithms\GoldenSectionSearch.cs" />
     <Compile Include="Algorithms\ISolver.cs" />
     <Compile Include="Algorithms\Knapsack.cs" />
+    <Compile Include="Algorithms\LineSearch1D.cs" />
     <Compile Include="Algorithms\PrimalSimplex.cs" />
     <Compile Include="Algorithms\RevisedPrimalSimplex.cs" />
     <Compile Include="Algorithms\SensitivityAnalysis.cs" />
+    <Compile Include="Models\HessianAnalyzer.cs" />
     <Compile Include="Models\LinearProgram.cs" />
+    <Compile Include="Models\MultiVariableNonLinearFunction.cs" />
+    <Compile Include="Models\MultivariatePolynomial.cs" />
+    <Compile Include="Models\NonLinearFunctions.cs" />
+    <Compile Include="Models\NonLinearRouter.cs" />
+    <Compile Include="Models\NonLinearToLinearConverter.cs" />
     <Compile Include="Models\NumberFormatter.cs" />
     <Compile Include="Models\Solution.cs" />
+    <Compile Include="Models\SteepestAscentDescent.cs" />
     <Compile Include="Presentation Layer\frmMainForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -97,6 +106,12 @@
     <Content Include="Data\Binary1.txt" />
     <Content Include="Data\Binary2.txt" />
     <Content Include="Data\Binary3.txt" />
+    <Content Include="Data\Multi-variable NLP 1.txt" />
+    <Content Include="Data\Multi-variable NLP 2.txt" />
+    <Content Include="Data\Non-Linear Problem 1.txt" />
+    <Content Include="Data\Non-Linear Problem 2.txt" />
+    <Content Include="Data\Non-Linear Problem 3.txt" />
+    <Content Include="Data\Non-Linear Problem 4.txt" />
     <Content Include="Data\Primal1.txt" />
     <Content Include="Data\Primal2.txt" />
     <Content Include="Data\RevisedSimplex1.txt" />
