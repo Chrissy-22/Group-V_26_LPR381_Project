@@ -40,6 +40,13 @@ namespace Group_V_26_LPR381_Project.Models
                     ParseConstraints(lines.Skip(1).Take(lines.Length - 2).ToArray(), program);
 
                 ParseSignRestrictions(lines[lines.Length - 1], program);
+
+                // Binary variables are restricted to {0,1}. The dual simplex tableau has
+                // no notion of variable bounds, only constraints - so without an explicit
+                // x_i <= 1 row, a binary variable's LP relaxation value is only ever
+                // constrained by x_i >= 0. This lets algorithms accept integer-valued but
+                // out-of-range results (e.g. x_i = 5) as a valid "integer solution".
+                AddBinaryUpperBounds(program);
             }
             catch (Exception ex)
             {
@@ -47,6 +54,30 @@ namespace Group_V_26_LPR381_Project.Models
             }
 
             return program;
+        }
+
+        /// <summary>
+        /// Adds an explicit x_i &lt;= 1 constraint for every variable marked 'bin' in the
+        /// sign-restriction line. Must run after ParseSignRestrictions has set each
+        /// variable's Type, and before the program is handed to any solver.
+        /// </summary>
+        private static void AddBinaryUpperBounds(LinearProgram program)
+        {
+            for (int i = 0; i < program.Variables.Count; i++)
+            {
+                if (program.Variables[i].Type != VariableType.Binary)
+                    continue;
+
+                var coefficients = new List<double>(new double[program.Variables.Count]);
+                coefficients[i] = 1;
+
+                program.Constraints.Add(new Constraint
+                {
+                    Coefficients = coefficients,
+                    Relation = Relation.LessThanOrEqual,
+                    Rhs = 1
+                });
+            }
         }
 
         private static void ParseObjectiveFunction(string line, LinearProgram program)
