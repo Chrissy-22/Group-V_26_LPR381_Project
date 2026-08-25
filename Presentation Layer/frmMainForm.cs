@@ -922,6 +922,20 @@ namespace Group_V_26_LPR381_Project.Presentation_Layer
                     NonLinearRouter.IsNonLinearInput(
                         txtProblemInput.Text))
                 {
+
+                    if (NonLinearRouter.IsMultiVariable(txtProblemInput.Text))
+                    {
+                        MessageBox.Show(
+                            "Multi-variable non-linear problems (x1, x2, ...) aren't supported by " +
+                            "this algorithm - use the Golden Section / Steepest Ascent-Descent button instead.",
+                            "Not Applicable",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Information
+                        );
+
+                        return;
+                    }
+
                     var nlp =
                         NonLinearRouter.Parse(
                             txtProblemInput.Text
@@ -1064,6 +1078,20 @@ namespace Group_V_26_LPR381_Project.Presentation_Layer
                     NonLinearRouter.IsNonLinearInput(
                         txtProblemInput.Text))
                 {
+
+                    if (NonLinearRouter.IsMultiVariable(txtProblemInput.Text))
+                    {
+                        MessageBox.Show(
+                            "Multi-variable non-linear problems (x1, x2, ...) aren't supported by " +
+                            "this algorithm - use the Golden Section / Steepest Ascent-Descent button instead.",
+                            "Not Applicable",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Information
+                        );
+
+                        return;
+                    }
+
                     var nlp =
                         NonLinearRouter.Parse(
                             txtProblemInput.Text
@@ -1210,6 +1238,20 @@ namespace Group_V_26_LPR381_Project.Presentation_Layer
                     NonLinearRouter.IsNonLinearInput(
                         txtProblemInput.Text))
                 {
+
+                    if (NonLinearRouter.IsMultiVariable(txtProblemInput.Text))
+                    {
+                        MessageBox.Show(
+                            "Multi-variable non-linear problems (x1, x2, ...) aren't supported by " +
+                            "this algorithm - use the Golden Section / Steepest Ascent-Descent button instead.",
+                            "Not Applicable",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Information
+                        );
+
+                        return;
+                    }
+
                     var nlp =
                         NonLinearRouter.Parse(
                             txtProblemInput.Text
@@ -1471,6 +1513,20 @@ namespace Group_V_26_LPR381_Project.Presentation_Layer
                     NonLinearRouter.IsNonLinearInput(
                         txtProblemInput.Text))
                 {
+
+                    if (NonLinearRouter.IsMultiVariable(txtProblemInput.Text))
+                    {
+                        MessageBox.Show(
+                            "Multi-variable non-linear problems (x1, x2, ...) aren't supported by " +
+                            "this algorithm - use the Golden Section / Steepest Ascent-Descent button instead.",
+                            "Not Applicable",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Information
+                        );
+
+                        return;
+                    }
+
                     var nlp =
                         NonLinearRouter.Parse(
                             txtProblemInput.Text
@@ -1614,7 +1670,14 @@ namespace Group_V_26_LPR381_Project.Presentation_Layer
                     Environment.NewLine +
                     "nlp min x^2" +
                     Environment.NewLine +
-                    "-5 5",
+                    "-5 5" +
+                    Environment.NewLine +
+                    Environment.NewLine +
+                    "Or for multiple variables:" +
+                    Environment.NewLine +
+                    "nlp max x1^2*x2^2" +
+                    Environment.NewLine +
+                    "2 1",
                     "Problem Required",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Warning
@@ -1629,7 +1692,7 @@ namespace Group_V_26_LPR381_Project.Presentation_Layer
                     txtProblemInput.Text))
             {
                 MessageBox.Show(
-                    "Golden Section Search only applies " +
+                    "This solver only applies " +
                     "to non-linear problems.",
                     "Not Applicable",
                     MessageBoxButtons.OK,
@@ -1640,53 +1703,97 @@ namespace Group_V_26_LPR381_Project.Presentation_Layer
             }
 
 
-            SelectAlgorithm(
-                btnSolveGoldenSection,
-                "Golden Section Search",
-                "Optimising a single-variable nonlinear objective."
-            );
-
-
-            SetStatusWorking(
-                "Running Golden Section..."
-            );
-
-
             try
             {
-                var nlp =
-                    NonLinearRouter.Parse(
-                        txtProblemInput.Text
+                if (NonLinearRouter.IsMultiVariable(txtProblemInput.Text))
+                {
+                    SelectAlgorithm(
+                        btnSolveGoldenSection,
+                        "Steepest Ascent / Descent",
+                        "Optimising a multi-variable nonlinear objective."
                     );
 
 
-                var solver =
-                    new GoldenSectionSearch();
-
-
-                var solution =
-                    solver.Solve(
-                        nlp.Expression,
-                        nlp.LowerBound,
-                        nlp.UpperBound,
-                        nlp.Maximize
+                    SetStatusWorking(
+                        "Running Steepest Ascent/Descent..."
                     );
 
 
-                RenderSolution(
-                    solution
-                );
+                    var mvInput =
+                        NonLinearRouter.ParseMultiVariable(
+                            txtProblemInput.Text
+                        );
 
 
-                SetStatusSuccess(
-                    "Golden Section complete"
-                );
+                    var solver =
+                        new SteepestAscentDescent();
+
+
+                    var solution =
+                        solver.Solve(
+                            mvInput.Expression,
+                            mvInput.StartingPoint,
+                            mvInput.Maximize
+                        );
+
+
+                    RenderSolution(
+                        solution
+                    );
+
+
+                    SetStatusSuccess(
+                        "Steepest Ascent/Descent complete"
+                    );
+                }
+                else
+                {
+                    SelectAlgorithm(
+                        btnSolveGoldenSection,
+                        "Golden Section Search",
+                        "Optimising a single-variable nonlinear objective."
+                    );
+
+
+                    SetStatusWorking(
+                        "Running Golden Section..."
+                    );
+
+
+                    var nlp =
+                        NonLinearRouter.Parse(
+                            txtProblemInput.Text
+                        );
+
+
+                    var solver =
+                        new GoldenSectionSearch();
+
+
+                    var solution =
+                        solver.Solve(
+                            nlp.Expression,
+                            nlp.LowerBound,
+                            nlp.UpperBound,
+                            nlp.Maximize
+                        );
+
+
+                    RenderSolution(
+                        solution
+                    );
+
+
+                    SetStatusSuccess(
+                        "Golden Section complete"
+                    );
+                }
             }
 
             catch (Exception ex)
             {
                 SetStatusError(
-                    "Golden Section failed"
+                    "Solver failed"
                 );
 
 
