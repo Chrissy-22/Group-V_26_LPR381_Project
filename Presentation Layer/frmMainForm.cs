@@ -1638,6 +1638,20 @@ namespace Group_V_26_LPR381_Project.Presentation_Layer
             object sender,
             EventArgs e)
         {
+            if (
+                string.IsNullOrWhiteSpace(
+                    txtProblemInput.Text))
+            {
+                MessageBox.Show(
+                    "Please enter or load a problem first.",
+                    "Problem Required",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning
+                );
+
+                return;
+            }
+
             SelectAlgorithm(
                 btnSolveSensitivityAnalysis,
                 "Sensitivity Analysis",
@@ -1647,6 +1661,23 @@ namespace Group_V_26_LPR381_Project.Presentation_Layer
 
             lblStatus.Text =
                 "Sensitivity Analysis selected";
+
+            btnSolveSensitivityAnalysis.Enabled =
+                false;
+
+            try
+            {
+                var program = LinearProgram.Parse(txtProblemInput.Text);
+                var solver = new SensitivityAnalysis();
+                var solution = solver.Solve(program);
+
+                RenderSolution(solution);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error running sensitivity analysis: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
 
