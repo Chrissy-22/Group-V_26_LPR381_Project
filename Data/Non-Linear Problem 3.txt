@@ -1,0 +1,2 @@
+nlp max sqrt(x)
+0.01 10
