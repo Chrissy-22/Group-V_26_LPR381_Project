@@ -18,6 +18,7 @@
 
         private void InitializeComponent()
         {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(frmMainForm));
             this.pnlSidebar = new System.Windows.Forms.Panel();
             this.pnlSidebarContent = new System.Windows.Forms.Panel();
             this.lblStatus = new System.Windows.Forms.Label();
@@ -99,7 +100,7 @@
             this.lblStatus.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(148)))), ((int)(((byte)(163)))), ((int)(((byte)(184)))));
             this.lblStatus.Location = new System.Drawing.Point(22, 689);
             this.lblStatus.Name = "lblStatus";
-            this.lblStatus.Size = new System.Drawing.Size(50, 20);
+            this.lblStatus.Size = new System.Drawing.Size(39, 15);
             this.lblStatus.TabIndex = 14;
             this.lblStatus.Text = "Ready";
             // 
@@ -164,7 +165,7 @@
             this.lblProblemInput.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(148)))), ((int)(((byte)(163)))), ((int)(((byte)(184)))));
             this.lblProblemInput.Location = new System.Drawing.Point(22, 395);
             this.lblProblemInput.Name = "lblProblemInput";
-            this.lblProblemInput.Size = new System.Drawing.Size(129, 20);
+            this.lblProblemInput.Size = new System.Drawing.Size(101, 15);
             this.lblProblemInput.TabIndex = 8;
             this.lblProblemInput.Text = "PROBLEM INPUT";
             // 
@@ -252,7 +253,7 @@
             this.lblMethods.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(148)))), ((int)(((byte)(163)))), ((int)(((byte)(184)))));
             this.lblMethods.Location = new System.Drawing.Point(22, 20);
             this.lblMethods.Name = "lblMethods";
-            this.lblMethods.Size = new System.Drawing.Size(139, 20);
+            this.lblMethods.Size = new System.Drawing.Size(111, 15);
             this.lblMethods.TabIndex = 0;
             this.lblMethods.Text = "SOLVER METHODS";
             // 
@@ -274,7 +275,7 @@
             this.lblBrandSubtitle.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(148)))), ((int)(((byte)(163)))), ((int)(((byte)(184)))));
             this.lblBrandSubtitle.Location = new System.Drawing.Point(25, 61);
             this.lblBrandSubtitle.Name = "lblBrandSubtitle";
-            this.lblBrandSubtitle.Size = new System.Drawing.Size(202, 21);
+            this.lblBrandSubtitle.Size = new System.Drawing.Size(167, 17);
             this.lblBrandSubtitle.TabIndex = 1;
             this.lblBrandSubtitle.Text = "Linear Programming Solver";
             // 
@@ -285,7 +286,7 @@
             this.lblBrand.ForeColor = System.Drawing.Color.White;
             this.lblBrand.Location = new System.Drawing.Point(22, 18);
             this.lblBrand.Name = "lblBrand";
-            this.lblBrand.Size = new System.Drawing.Size(168, 50);
+            this.lblBrand.Size = new System.Drawing.Size(137, 41);
             this.lblBrand.TabIndex = 0;
             this.lblBrand.Text = "OPTIMA";
             // 
@@ -346,7 +347,7 @@
             this.lblOutputTitle.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(15)))), ((int)(((byte)(23)))), ((int)(((byte)(42)))));
             this.lblOutputTitle.Location = new System.Drawing.Point(25, 20);
             this.lblOutputTitle.Name = "lblOutputTitle";
-            this.lblOutputTitle.Size = new System.Drawing.Size(164, 28);
+            this.lblOutputTitle.Size = new System.Drawing.Size(133, 21);
             this.lblOutputTitle.TabIndex = 0;
             this.lblOutputTitle.Text = "Solution Output";
             // 
@@ -368,7 +369,7 @@
             this.lblHeaderSubtitle.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(100)))), ((int)(((byte)(116)))), ((int)(((byte)(139)))));
             this.lblHeaderSubtitle.Location = new System.Drawing.Point(38, 67);
             this.lblHeaderSubtitle.Name = "lblHeaderSubtitle";
-            this.lblHeaderSubtitle.Size = new System.Drawing.Size(416, 23);
+            this.lblHeaderSubtitle.Size = new System.Drawing.Size(335, 19);
             this.lblHeaderSubtitle.TabIndex = 1;
             this.lblHeaderSubtitle.Text = "Choose an optimisation method to solve your model.";
             // 
@@ -379,19 +380,20 @@
             this.lblAlgorithmName.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(15)))), ((int)(((byte)(23)))), ((int)(((byte)(42)))));
             this.lblAlgorithmName.Location = new System.Drawing.Point(35, 20);
             this.lblAlgorithmName.Name = "lblAlgorithmName";
-            this.lblAlgorithmName.Size = new System.Drawing.Size(507, 50);
+            this.lblAlgorithmName.Size = new System.Drawing.Size(408, 41);
             this.lblAlgorithmName.TabIndex = 0;
             this.lblAlgorithmName.Text = "Programming Model Solver";
             // 
             // frmMainForm
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 20F);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(241)))), ((int)(((byte)(245)))), ((int)(((byte)(249)))));
             this.ClientSize = new System.Drawing.Size(1184, 721);
             this.Controls.Add(this.pnlMain);
             this.Controls.Add(this.pnlSidebar);
             this.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.MinimumSize = new System.Drawing.Size(1050, 760);
             this.Name = "frmMainForm";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
