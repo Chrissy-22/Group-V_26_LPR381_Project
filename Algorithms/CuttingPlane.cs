@@ -7,11 +7,18 @@ using System.Text;
 
 namespace LinearProgrammingSolver.Algorithms
 {
+    /// <summary>
+    /// Gomory mixed-integer cutting-plane solver for maximisation and minimisation models.
+    ///
+    /// Cuts are formed from the live optimal tableau and appended directly to it.  This is
+    /// important: a cut row is in tableau coordinates, not in the original model's decision
+    /// variable coordinates, and its cut-slack remains a continuous tableau auxiliary.
+    /// </summary>
     public class CuttingPlane : ISolver
     {
-        private readonly DualSimplex _dualSimplex;
         private const double TOLERANCE = 1e-6;
         private const int MAX_CUTS = 50;
+        private readonly DualSimplex _dualSimplex;
 
         public CuttingPlane()
         {
@@ -21,858 +28,597 @@ namespace LinearProgrammingSolver.Algorithms
         public Solution Solve(LinearProgram program)
         {
             var solution = new Solution();
+            if (!ValidateSupportedModel(program, solution))
+                return solution;
 
-            solution.AddStep(
-                "Canonical Form",
-                FormatCanonicalForm(program));
+            // Binary is an integrality restriction as well as an upper bound.  Work on a
+            // clone so callers' model data remains unchanged while its LP relaxation honours
+            // x <= 1 for every declared binary variable.
+            LinearProgram workingProgram = CreateRelaxationProgram(program);
+            solution.AddStep("Canonical Form", FormatCanonicalForm(workingProgram));
 
-            // 1. Solve LP relaxation.
-            var currentSolution = _dualSimplex.Solve(program);
+            Solution currentSolution = _dualSimplex.Solve(workingProgram);
+            CopySimplexIterations(solution, currentSolution, "LP Relaxation");
+            CopyResultMetadata(solution, currentSolution);
 
-            if (HasFailure(currentSolution))
+            if (HasSolverFailure(currentSolution))
             {
+                solution.AddMessage("Initial LP relaxation is infeasible or unbounded. Cutting Plane cannot proceed.");
                 CopyMessages(solution, currentSolution);
                 return solution;
             }
 
-            CopySimplexIterations(solution, currentSolution, "LP Relaxation");
+            int cutCount = 0;
 
-            var currentProgram = program.Clone();
-
-            int cutNumber = 0;
-
-            while (true)
+            while (cutCount < MAX_CUTS)
             {
-                // 2. Find a fractional INTEGER/BINARY decision variable.
-                var fractional = FindFractionalVariable(
-                    currentSolution,
-                    currentProgram);
+                Tuple<string, double> fractionalVariable =
+                    FindMostFractionalIntegerVariable(currentSolution, workingProgram);
 
-                // 3. All required integer variables are integer.
-                if (fractional == null)
+                if (fractionalVariable == null)
                 {
                     solution.OptimalValue = currentSolution.OptimalValue;
-                    solution.VariableValues =
-                        new Dictionary<string, double>(
-                            currentSolution.VariableValues);
-
-                    solution.AddMessage(
-                        "\nOptimal integer solution found: " +
-                        FormatSolution(currentSolution));
-
-                    break;
-                }
-
-                cutNumber++;
-
-                if (cutNumber > MAX_CUTS)
-                {
-                    solution.AddMessage(
-                        $"Maximum number of Gomory cuts ({MAX_CUTS}) reached.");
-                    break;
-                }
-
-                string variableName = fractional.Value.Name;
-                double variableValue = fractional.Value.Value;
-                int variableColumn =
-                    GetVariableIndex(variableName) - 1;
-
-                solution.AddMessage(
-                    $"\nGomory Cut #{cutNumber}: " +
-                    $"{variableName} = {NumberFormatter.Format(variableValue)} " +
-                    "is fractional.");
-
-                // 4. Find the tableau row in which that integer variable is basic.
-                int pivotRow = FindBasicVariableRow(
-                    currentSolution.FinalTableau,
-                    variableColumn);
-
-                if (pivotRow == -1)
-                {
-                    solution.AddMessage(
-                        $"Cannot generate Gomory cut: {variableName} " +
-                        "is not basic in the final tableau.");
-
+                    solution.VariableValues = GetOriginalDecisionValues(currentSolution, program);
+                    solution.FinalTableau = currentSolution.FinalTableau == null
+                        ? null
+                        : (double[,])currentSolution.FinalTableau.Clone();
+                    solution.AddMessage("Result: OPTIMAL INTEGER SOLUTION");
+                    solution.AddMessage("Optimal integer solution found with value: " +
+                        NumberFormatter.Format(currentSolution.OptimalValue));
                     return solution;
                 }
 
-                // 5. Build Gomory fractional cut from the selected row.
-                var cut = GenerateGomoryCut(
+                cutCount++;
+                string cutSlackName = "g" + cutCount;
+                double fraction = FractionalPart(fractionalVariable.Item2);
+                solution.AddMessage($"Cut {cutCount}: selected {fractionalVariable.Item1} = " +
+                    $"{NumberFormatter.Format(fractionalVariable.Item2)} " +
+                    $"(fractional part {NumberFormatter.Format(fraction)}).");
+
+                CutInfo cut = GenerateGmiCut(
                     currentSolution,
-                    currentProgram,
-                    pivotRow,
-                    variableColumn,
-                    variableName,
-                    cutNumber);
+                    fractionalVariable.Item1,
+                    workingProgram,
+                    cutSlackName);
 
                 if (cut == null)
                 {
-                    solution.AddMessage(
-                        "Unable to generate a valid Gomory cut.");
-
+                    solution.AddMessage("Unable to generate a valid cut from the current tableau. No integer result is claimed.");
                     return solution;
                 }
 
-                solution.AddStep(
-                    $"Gomory Cut #{cutNumber}",
-                    cut.Explanation);
+                solution.AddStep("Cut " + cutCount + " Generation", cut.GenerationSteps);
+                solution.AddMessage("Appending tableau cut: " + cut.CanonicalEquation);
 
-                // 6. Add the new cut directly through DualSimplex's
-                //    constraint mechanism.
-                Solution cutSolution =
-                    _dualSimplex.AddConstraintAndResolve(cut.Constraint);
+                // This call preserves the existing optimal tableau and restores feasibility
+                // with Dual Simplex.  It must not rebuild the LP from the original model.
+                currentSolution = _dualSimplex.AppendGomoryCutAndResolve(
+                    cut.TableauCoefficients,
+                    cut.RightHandSide,
+                    cutSlackName);
 
-                CopySimplexIterations(
-                    solution,
-                    cutSolution,
-                    $"After Gomory Cut #{cutNumber}");
+                CopySimplexIterations(solution, currentSolution, "After Cut " + cutCount);
+                CopyResultMetadata(solution, currentSolution);
 
-                CopyMessages(solution, cutSolution);
-
-                if (HasFailure(cutSolution))
+                if (HasSolverFailure(currentSolution))
                 {
+                    solution.AddMessage("Result: INTEGER INFEASIBLE");
+                    CopyMessages(solution, currentSolution);
                     return solution;
                 }
 
-                // 7. Update the mathematical model so future cuts see
-                //    the new constraint.
-                currentProgram.Constraints.Add(
-                    CloneConstraint(cut.Constraint));
-
-                // 8. Continue from the new optimum.
-                currentSolution = cutSolution;
+                solution.AddMessage("Cut " + cutCount + " result: LP value = " +
+                    NumberFormatter.Format(currentSolution.OptimalValue));
             }
 
+            // A cut limit is a guard against cycling/slow convergence, not evidence of an
+            // integer solution.  Expose the current relaxation only as diagnostic output.
+            solution.OptimalValue = currentSolution.OptimalValue;
+            solution.VariableValues = GetOriginalDecisionValues(currentSolution, program);
+            solution.FinalTableau = currentSolution.FinalTableau == null
+                ? null
+                : (double[,])currentSolution.FinalTableau.Clone();
+            solution.AddMessage("Maximum number of Gomory cuts reached; no integer optimality claim is made.");
             return solution;
         }
 
-        private bool HasFailure(Solution solution)
+        /// <summary>
+        /// Cutting Plane needs at least one original integer-restricted decision variable.
+        /// Both objective directions and mixed rows are handled by the GMI calculation.
+        /// </summary>
+        private bool ValidateSupportedModel(LinearProgram program, Solution solution)
         {
-            return solution.Messages.Any(
-                m => m.IndexOf("infeasible",
-                               StringComparison.OrdinalIgnoreCase) >= 0
-                  || m.IndexOf("unbounded",
-                               StringComparison.OrdinalIgnoreCase) >= 0);
-        }
-
-        private void CopyMessages(
-            Solution target,
-            Solution source)
-        {
-            foreach (var message in source.Messages)
-                target.AddMessage(message);
-        }
-
-        private void CopySimplexIterations(
-            Solution target,
-            Solution source,
-            string labelPrefix)
-        {
-            for (int i = 0;
-                 i < source.IterationTableaux.Count;
-                 i++)
+            if (program == null)
             {
-                var headers =
-                    i < source.IterationColumnHeaders.Count
-                        ? source.IterationColumnHeaders[i]
-                        : null;
-
-                int pivotRow =
-                    i < source.IterationPivotRows.Count
-                        ? source.IterationPivotRows[i]
-                        : -1;
-
-                int pivotCol =
-                    i < source.IterationPivotCols.Count
-                        ? source.IterationPivotCols[i]
-                        : -1;
-
-                string message =
-                    i < source.IterationMessages.Count
-                        ? source.IterationMessages[i]
-                        : $"Iteration {i + 1}";
-
-                string label =
-                    $"{labelPrefix} - {message}";
-
-                target.AddIteration(
-                    source.IterationTableaux[i],
-                    label,
-                    pivotRow,
-                    pivotCol,
-                    headers);
+                solution.AddMessage("Result: UNSUPPORTED MODEL");
+                solution.AddMessage("No linear program was provided.");
+                return false;
             }
+
+            bool hasIntegerVariable = program.Variables.Any(IsIntegerRestricted);
+            if (!hasIntegerVariable)
+            {
+                solution.AddMessage("Result: UNSUPPORTED MODEL");
+                solution.AddMessage("Cutting Plane requires at least one original integer or binary decision variable.");
+                return false;
+            }
+
+            for (int row = 0; row < program.Constraints.Count; row++)
+            {
+                if (program.Constraints[row].Coefficients.Count != program.Variables.Count)
+                {
+                    solution.AddMessage("Result: UNSUPPORTED MODEL");
+                    solution.AddMessage("Constraint " + (row + 1) + " does not match the number of original decision variables.");
+                    return false;
+                }
+            }
+
+            return true;
         }
 
-        private (string Name, double Value)? FindFractionalVariable(
+        private LinearProgram CreateRelaxationProgram(LinearProgram program)
+        {
+            LinearProgram relaxation = program.Clone();
+            for (int i = 0; i < relaxation.Variables.Count; i++)
+            {
+                if (relaxation.Variables[i].Type != LinearProgram.VariableType.Binary)
+                    continue;
+
+                var upperBound = new LinearProgram.Constraint
+                {
+                    Relation = LinearProgram.Relation.LessThanOrEqual,
+                    Rhs = 1
+                };
+                for (int column = 0; column < relaxation.Variables.Count; column++)
+                    upperBound.Coefficients.Add(column == i ? 1 : 0);
+
+                relaxation.Constraints.Add(upperBound);
+            }
+            return relaxation;
+        }
+
+        private static bool IsIntegerRestricted(LinearProgram.Variable variable)
+        {
+            return variable.Type == LinearProgram.VariableType.Integer ||
+                variable.Type == LinearProgram.VariableType.Binary;
+        }
+
+        /// <summary>
+        /// Selects only original integer-restricted decision variables.  Tableau auxiliaries
+        /// (including every generated g# cut slack) are never candidates, even when their
+        /// displayed value happens to be fractional.
+        /// </summary>
+        private Tuple<string, double> FindMostFractionalIntegerVariable(
             Solution solution,
             LinearProgram program)
         {
-            var integerVariables =
-                program.Variables
-                    .Where(v =>
-                        v.Type == LinearProgram.VariableType.Integer ||
-                        v.Type == LinearProgram.VariableType.Binary)
-                    .OrderBy(v => v.Index)
-                    .ToList();
+            string selectedName = null;
+            double selectedValue = 0;
+            double closestToHalf = double.MaxValue;
+            int lowestOriginalIndex = int.MaxValue;
 
-            foreach (var variable in integerVariables)
+            foreach (LinearProgram.Variable variable in program.Variables
+                .Where(IsIntegerRestricted)
+                .OrderBy(variable => variable.Index))
             {
-                string name = $"x{variable.Index}";
-
-                if (!solution.VariableValues.TryGetValue(
-                        name,
-                        out double value))
-                {
+                string name = "x" + variable.Index;
+                double value;
+                if (!solution.VariableValues.TryGetValue(name, out value))
                     continue;
-                }
 
-                double fractionalPart =
-                    value - Math.Floor(value);
+                // Gomory rows may be generated only from a fractional *basic* integer
+                // variable.  This check intentionally uses the tableau, not just the value
+                // dictionary, so a stale/display-only value can never be used as a basis row.
+                int column = program.Variables.IndexOf(variable);
+                if (solution.FinalTableau == null ||
+                    FindBasicVariableRow(solution.FinalTableau, column) == -1)
+                    continue;
 
-                if (fractionalPart > TOLERANCE &&
-                    fractionalPart < 1.0 - TOLERANCE)
+                double fractionalPart = FractionalPart(value);
+                if (fractionalPart <= TOLERANCE || fractionalPart >= 1 - TOLERANCE)
+                    continue;
+
+                double distanceFromHalf = Math.Abs(fractionalPart - 0.5);
+                if (distanceFromHalf < closestToHalf - TOLERANCE ||
+                    (Math.Abs(distanceFromHalf - closestToHalf) <= TOLERANCE &&
+                        variable.Index < lowestOriginalIndex))
                 {
-                    return (name, value);
+                    selectedName = name;
+                    selectedValue = value;
+                    closestToHalf = distanceFromHalf;
+                    lowestOriginalIndex = variable.Index;
                 }
             }
 
-            return null;
+            return selectedName == null ? null : Tuple.Create(selectedName, selectedValue);
         }
 
-        /// <summary>Resolves the display name (x1, s1, e1, a1, ...) for tableau column j.</summary>
-        private string GetTableauColumnName(int j, LinearProgram program)
-        {
-            if (j < program.Variables.Count)
-                return $"x{program.Variables[j].Index}";
-
-            int auxIndex = j - program.Variables.Count;
-            if (auxIndex < 0 || auxIndex >= program.Constraints.Count)
-                return $"v{j + 1}";
-
-            var relation = program.Constraints[auxIndex].Relation;
-            if (relation == LinearProgram.Relation.LessThanOrEqual) return $"s{auxIndex + 1}";
-            if (relation == LinearProgram.Relation.GreaterThanOrEqual) return $"e{auxIndex + 1}";
-            return $"a{auxIndex + 1}";
-        }
-
-        private CutInfo GenerateGomoryCut(
+        /// <summary>
+        /// Produces a Gomory mixed-integer cut from one fractional basic integer row.  In a
+        /// pure integer model this reduces to the usual fractional cut for original integral
+        /// slacks; generated cut slacks and artificials are correctly treated as continuous
+        /// in later cuts.
+        /// </summary>
+        private CutInfo GenerateGmiCut(
             Solution solution,
+            string fractionalVariableName,
             LinearProgram program,
-            int pivotRow,
-            int variableColumn,
-            string variableName,
-            int cutNumber)
+            string cutSlackName)
         {
             if (solution.FinalTableau == null)
                 return null;
 
             double[,] tableau = solution.FinalTableau;
+            List<string> headers = _dualSimplex.GetCurrentColumnHeaders();
+            List<TableauColumnMetadata> metadata = _dualSimplex.GetCurrentColumnMetadata();
+            if (headers.Count != tableau.GetLength(1) || metadata.Count != tableau.GetLength(1) - 1)
+                throw new InvalidOperationException("The live tableau headers do not match the tableau dimensions.");
 
-            int cols = tableau.GetLength(1);
-            double rhs = tableau[pivotRow, cols - 1];
-
-            double rhsFraction = FractionalPart(rhs);
-
-            if (rhsFraction <= TOLERANCE)
+            int fractionalVariableColumn = GetOriginalVariableColumn(program, fractionalVariableName);
+            int sourceRow = FindBasicVariableRow(tableau, fractionalVariableColumn);
+            if (sourceRow == -1)
                 return null;
 
-            var explanation = new StringBuilder();
+            int rhsColumn = tableau.GetLength(1) - 1;
+            double rhs = tableau[sourceRow, rhsColumn];
+            double fractionalRhs = FractionalPart(rhs);
+            if (fractionalRhs <= TOLERANCE || fractionalRhs >= 1 - TOLERANCE)
+                return null;
 
-            explanation.AppendLine(
-                $"Gomory Cut #{cutNumber} from row {pivotRow}");
-
-            explanation.AppendLine(
-                $"Selected basic variable: {variableName}");
-
-            explanation.AppendLine();
-
-            explanation.AppendLine(
-                $"RHS = {NumberFormatter.Format(rhs)}");
-
-            explanation.AppendLine(
-                $"Fractional part = {NumberFormatter.Format(rhsFraction)}");
-
-            explanation.AppendLine();
-
-            explanation.AppendLine("Tableau row:");
-
-            explanation.Append(
-                $"{variableName} = {NumberFormatter.Format(rhs)}");
-
-            for (int j = 0; j < cols - 1; j++)
+            var cut = new CutInfo
             {
-                if (j == variableColumn)
-                    continue;
-
-                double coefficient = tableau[pivotRow, j];
-
-                if (Math.Abs(coefficient) <= TOLERANCE)
-                    continue;
-
-                string name = GetTableauColumnName(j, program);
-
-                explanation.Append(
-                    coefficient >= 0
-                        ? $" - {NumberFormatter.Format(coefficient)}{name}"
-                        : $" + {NumberFormatter.Format(-coefficient)}{name}");
-            }
-
-            explanation.AppendLine();
-            explanation.AppendLine();
-
-            explanation.AppendLine(
-                "Fractional-part calculations:");
-
-            // Gomory cut initially exists in tableau-variable form:
-            //
-            // sum f_j * y_j >= f(b)
-            //
-            // where y_j are the non-basic tableau variables.
-
-            double[] fractionalParts =
-                new double[cols - 1];
-
-            for (int j = 0; j < cols - 1; j++)
-            {
-                if (j == variableColumn)
-                {
-                    fractionalParts[j] = 0;
-                    continue;
-                }
-
-                double tableauCoefficient =
-                    tableau[pivotRow, j];
-
-                // Row is:
-                //
-                // xB + a_j*y_j = b
-                //
-                // therefore:
-                //
-                // xB = b - a_j*y_j
-
-                double fraction =
-                    FractionalPart(tableauCoefficient);
-
-                fractionalParts[j] = fraction;
-
-                if (Math.Abs(fraction) <= TOLERANCE)
-                    continue;
-
-                string name = GetTableauColumnName(j, program);
-
-                explanation.AppendLine(
-                    $"{name}: " +
-                    $"{NumberFormatter.Format(-tableauCoefficient)} " +
-                    $"=> fraction = " +
-                    $"{NumberFormatter.Format(fraction)}");
-            }
-
-            explanation.AppendLine();
-            explanation.AppendLine("Row equation (from the tableau):");
-            {
-                var rowEquationTerms = new StringBuilder(variableName);
-                for (int j = 0; j < cols - 1; j++)
-                {
-                    if (j == variableColumn) continue;
-                    double c = tableau[pivotRow, j];
-                    if (Math.Abs(c) <= TOLERANCE) continue;
-                    rowEquationTerms.Append(c >= 0 ? " + " : " - ")
-                        .Append(NumberFormatter.Format(Math.Abs(c)))
-                        .Append(GetTableauColumnName(j, program));
-                }
-                explanation.AppendLine($"{rowEquationTerms} = {NumberFormatter.Format(rhs)}");
-            }
-
-            explanation.AppendLine();
-            explanation.AppendLine("Split every coefficient (and the RHS) into an integer part + a fractional part:");
-            for (int j = 0; j < cols - 1; j++)
-            {
-                if (j == variableColumn) continue;
-                double c = tableau[pivotRow, j];
-                if (Math.Abs(c) <= TOLERANCE) continue;
-                explanation.AppendLine(
-                    $"  {GetTableauColumnName(j, program)}: {NumberFormatter.Format(c)} = " +
-                    $"{NumberFormatter.Format(Math.Floor(c))} + {NumberFormatter.Format(fractionalParts[j])}");
-            }
-            explanation.AppendLine(
-                $"  RHS: {NumberFormatter.Format(rhs)} = " +
-                $"{NumberFormatter.Format(Math.Floor(rhs))} + {NumberFormatter.Format(rhsFraction)}");
-
-            explanation.AppendLine();
-            explanation.AppendLine("Move every INTEGER-coefficient term left, every FRACTIONAL-coefficient term right:");
-            {
-                var leftTerms = new StringBuilder(variableName);
-                var rightTerms = new StringBuilder();
-                for (int j = 0; j < cols - 1; j++)
-                {
-                    if (j == variableColumn) continue;
-                    double c = tableau[pivotRow, j];
-                    if (Math.Abs(c) <= TOLERANCE) continue;
-                    double intPart = Math.Floor(c);
-                    double fracPart = fractionalParts[j];
-                    string name = GetTableauColumnName(j, program);
-                    if (Math.Abs(intPart) > TOLERANCE)
-                        leftTerms.Append(intPart >= 0 ? " + " : " - ")
-                            .Append(NumberFormatter.Format(Math.Abs(intPart)))
-                            .Append(name);
-                    if (Math.Abs(fracPart) > TOLERANCE)
-                        rightTerms.Append(" - ").Append(NumberFormatter.Format(fracPart)).Append(name);
-                }
-                explanation.AppendLine(
-                    $"  {leftTerms} - {NumberFormatter.Format(Math.Floor(rhs))}  =  " +
-                    $"{NumberFormatter.Format(rhsFraction)}{rightTerms}");
-            }
-
-            explanation.AppendLine();
-            explanation.AppendLine(
-                $"The left side is a whole number ({variableName} and every integer coefficient there are integers).");
-            explanation.AppendLine(
-                "The right side is < 1, since every non-basic variable is >= 0 and every fractional coefficient is in [0,1).");
-            explanation.AppendLine("A whole number that is < 1 must be <= 0:");
-            explanation.AppendLine(
-                $"  {NumberFormatter.Format(rhsFraction)} - (sum of fractional terms) <= 0");
-
-            // ---------------------------------------------------------
-            // END EXPLICIT DERIVATION
-            // ---------------------------------------------------------
-
-            explanation.AppendLine();
-
-            explanation.AppendLine(
-                "Converting the cut to the original decision variables:");
-
-            // Tableau cut:
-            //
-            // sum f_j*y_j >= f(b)
-            //
-            // Every auxiliary variable is substituted back into
-            // the original constraints.
-
-            double[] lhsOriginal =
-                new double[program.Variables.Count];
-
-            double constantPart = 0.0;
-
-            for (int j = 0; j < cols - 1; j++)
-            {
-                double fraction = fractionalParts[j];
-
-                if (Math.Abs(fraction) <= TOLERANCE)
-                    continue;
-
-                // Original x variable.
-                if (j < program.Variables.Count)
-                {
-                    lhsOriginal[j] += fraction;
-                    continue;
-                }
-
-                // Auxiliary variable.
-                int constraintIndex =
-                    j - program.Variables.Count;
-
-                if (constraintIndex < 0 ||
-                    constraintIndex >= program.Constraints.Count)
-                {
-                    continue;
-                }
-
-                var source =
-                    program.Constraints[constraintIndex];
-
-                if (source.Relation ==
-                    LinearProgram.Relation.LessThanOrEqual)
-                {
-                    // s = b - Ax
-
-                    constantPart +=
-                        fraction * source.Rhs;
-
-                    for (int k = 0;
-                         k < program.Variables.Count;
-                         k++)
-                    {
-                        lhsOriginal[k] -=
-                            fraction *
-                            source.Coefficients[k];
-                    }
-                }
-                else if (source.Relation ==
-                         LinearProgram.Relation.GreaterThanOrEqual)
-                {
-                    // e = Ax - b
-
-                    constantPart -=
-                        fraction * source.Rhs;
-
-                    for (int k = 0;
-                         k < program.Variables.Count;
-                         k++)
-                    {
-                        lhsOriginal[k] +=
-                            fraction *
-                            source.Coefficients[k];
-                    }
-                }
-                else
-                {
-                    // a = b - Ax
-
-                    constantPart +=
-                        fraction * source.Rhs;
-
-                    for (int k = 0;
-                         k < program.Variables.Count;
-                         k++)
-                    {
-                        lhsOriginal[k] -=
-                            fraction *
-                            source.Coefficients[k];
-                    }
-                }
-            }
-
-            // We currently have:
-            //
-            // lhsOriginal*x + constantPart >= rhsFraction
-            //
-            // therefore:
-            //
-            // lhsOriginal*x >= rhsFraction - constantPart
-
-            double convertedRhs =
-                rhsFraction - constantPart;
-
-            explanation.AppendLine();
-
-            explanation.AppendLine(
-                "Before normalization:");
-
-            string convertedExpression = string.Join(
-                " + ",
-                lhsOriginal
-                    .Select((c, i) =>
-                        $"{NumberFormatter.Format(c)}x{i + 1}")
-                    .Where(s => !s.StartsWith("0")));
-
-            explanation.AppendLine(
-                $"{convertedExpression} >= " +
-                $"{NumberFormatter.Format(convertedRhs)}");
-            // Multiply by -1 so the cut is stored as <=.
-            //
-            // This is preferable because the existing ConstraintHandler
-            // already handles <= cuts by adding a normal slack variable.
-
-            double[] finalCoefficients =
-                new double[program.Variables.Count];
-
-            for (int i = 0;
-                 i < lhsOriginal.Length;
-                 i++)
-            {
-                finalCoefficients[i] =
-                    -lhsOriginal[i];
-            }
-
-            double finalRhs =
-                -convertedRhs;
-
-            var cutConstraint =
-                new LinearProgram.Constraint
-                {
-                    Coefficients =
-                        finalCoefficients.ToList(),
-
-                    Relation =
-                        LinearProgram.Relation.LessThanOrEqual,
-
-                    Rhs =
-                        finalRhs
-                };
-
-            var terms =
-                new List<string>();
-
-            for (int i = 0;
-                 i < finalCoefficients.Length;
-                 i++)
-            {
-                double coefficient =
-                    finalCoefficients[i];
-
-                if (Math.Abs(coefficient) <= TOLERANCE)
-                    continue;
-
-                string term =
-                    $"{NumberFormatter.Format(Math.Abs(coefficient))}x{i + 1}";
-
-                if (terms.Count == 0)
-                {
-                    terms.Add(
-                        coefficient >= 0
-                            ? term
-                            : "- " + term);
-                }
-                else
-                {
-                    terms.Add(
-                        coefficient >= 0
-                            ? "+ " + term
-                            : "- " + term);
-                }
-            }
-
-            explanation.AppendLine();
-
-            explanation.AppendLine(
-                "Final Gomory cut:");
-
-            explanation.AppendLine(
-                $"{string.Join(" ", terms)} <= " +
-                $"{NumberFormatter.Format(finalRhs)}");
-
-            explanation.AppendLine();
-
-            explanation.AppendLine(
-                "Cut added as a <= constraint.");
-
-            return new CutInfo
-            {
-                Constraint = cutConstraint,
-                Explanation = explanation.ToString()
+                TableauCoefficients = new double[rhsColumn],
+                RightHandSide = -fractionalRhs
             };
-        }
-        private double FractionalPart(double value)
-        {
-            double floor = Math.Floor(value);
-            return value - floor;
-        }
+            var steps = new StringBuilder();
+            steps.AppendLine("Source tableau row (basic integer variable):");
+            steps.Append("  ").Append(fractionalVariableName);
+            AppendRowTerms(steps, tableau, sourceRow, headers);
+            steps.Append(" = ").AppendLine(NumberFormatter.Format(rhs));
+            steps.AppendLine();
+            steps.AppendLine("Gomory/GMI coefficients (fractional part uses a - floor(a), including negative a):");
+            steps.AppendLine("  f0 = frac(" + NumberFormatter.Format(rhs) + ") = " +
+                NumberFormatter.Format(fractionalRhs));
 
-        private int FindBasicVariableRow(
-            double[,] tableau,
-            int variableColumn)
-        {
-            if (tableau == null)
-                return -1;
-
-            int rows =
-                tableau.GetLength(0);
-
-            for (int i = 1; i < rows; i++)
+            for (int column = 0; column < rhsColumn; column++)
             {
-                if (Math.Abs(
-                        tableau[i, variableColumn] - 1.0)
-                    > TOLERANCE)
-                {
+                if (IsBasicColumn(tableau, column))
                     continue;
+
+                double coefficient = tableau[sourceRow, column];
+                bool integerColumn = IsIntegerTableauColumn(
+                    metadata[column], program);
+                double alpha;
+
+                if (integerColumn)
+                {
+                    double fractionalCoefficient = FractionalPart(coefficient);
+                    alpha = fractionalCoefficient <= fractionalRhs + TOLERANCE
+                        ? fractionalCoefficient
+                        : fractionalRhs * (1 - fractionalCoefficient) / (1 - fractionalRhs);
+                    if (Math.Abs(alpha) > TOLERANCE)
+                    {
+                        steps.AppendLine("  " + headers[column] + " (integer): frac(a) = " +
+                            NumberFormatter.Format(fractionalCoefficient) + ", alpha = " +
+                            NumberFormatter.Format(alpha));
+                    }
+                }
+                else
+                {
+                    alpha = coefficient >= -TOLERANCE
+                        ? coefficient
+                        : -fractionalRhs * coefficient / (1 - fractionalRhs);
+                    if (Math.Abs(alpha) > TOLERANCE)
+                    {
+                        steps.AppendLine("  " + headers[column] + " (continuous auxiliary): a = " +
+                            NumberFormatter.Format(coefficient) + ", alpha = " +
+                            NumberFormatter.Format(alpha));
+                    }
                 }
 
-                bool basic = true;
+                cut.TableauCoefficients[column] = Math.Abs(alpha) <= TOLERANCE ? 0 : -alpha;
+            }
 
-                for (int k = 0; k < rows; k++)
+            steps.AppendLine();
+            steps.AppendLine("Cut before tableau slack: sum(alpha_j * nonbasic_j) >= f0");
+            cut.CanonicalEquation = FormatCutEquation(cut.TableauCoefficients, headers,
+                cutSlackName, cut.RightHandSide);
+            steps.AppendLine("Stored tableau equality: " + cut.CanonicalEquation);
+            steps.AppendLine("The new " + cutSlackName + " column is a continuous cut auxiliary, not an original x variable.");
+            steps.AppendLine("The negative RHS is restored by Dual Simplex from this existing tableau.");
+            cut.GenerationSteps = steps.ToString();
+            return cut;
+        }
+
+        private static bool IsIntegerTableauColumn(
+            TableauColumnMetadata metadata,
+            LinearProgram program)
+        {
+            if (metadata.Role == TableauColumnRole.OriginalDecision)
+            {
+                return metadata.OriginalVariablePosition >= 0 &&
+                    metadata.OriginalVariablePosition < program.Variables.Count &&
+                    IsIntegerRestricted(program.Variables[metadata.OriginalVariablePosition]);
+            }
+
+            if (metadata.Role != TableauColumnRole.OriginalSlack &&
+                metadata.Role != TableauColumnRole.OriginalExcess)
+                return false;
+
+            return IsIntegralOriginalConstraintAuxiliary(metadata.OriginalConstraintIndex, program);
+        }
+
+        /// <summary>
+        /// A slack/excess can be integer-restricted only when its original constraint is
+        /// integral and every decision variable contributing to that row is itself integer
+        /// restricted.  Integer coefficients/RHS alone are insufficient in a mixed model.
+        /// </summary>
+        private static bool IsIntegralOriginalConstraintAuxiliary(
+            int constraintIndex, LinearProgram program)
+        {
+            if (constraintIndex < 0 || constraintIndex >= program.Constraints.Count)
+                return false;
+
+            LinearProgram.Constraint constraint = program.Constraints[constraintIndex];
+            if (!IsNearlyInteger(constraint.Rhs) || !constraint.Coefficients.All(IsNearlyInteger))
+                return false;
+
+            for (int column = 0; column < constraint.Coefficients.Count; column++)
+            {
+                if (Math.Abs(constraint.Coefficients[column]) > TOLERANCE &&
+                    !IsIntegerRestricted(program.Variables[column]))
+                    return false;
+            }
+
+            return true;
+        }
+
+        private static bool IsNearlyInteger(double value)
+        {
+            return Math.Abs(value - Math.Round(value)) <= TOLERANCE;
+        }
+
+        /// <summary>
+        /// Mathematical fractional part used by GMI: frac(a) = a - floor(a).  Values within
+        /// the solver tolerance of an integer are normalized to zero.
+        /// </summary>
+        internal static double FractionalPart(double value)
+        {
+            double fraction = value - Math.Floor(value);
+            if (fraction <= TOLERANCE || 1 - fraction <= TOLERANCE)
+                return 0;
+            return fraction;
+        }
+
+        internal static bool IsIntegerWithinTolerance(double value)
+        {
+            return FractionalPart(value) == 0;
+        }
+
+        private static int GetOriginalVariableColumn(LinearProgram program, string variableName)
+        {
+            int index = int.Parse(variableName.Substring(1));
+            for (int column = 0; column < program.Variables.Count; column++)
+            {
+                if (program.Variables[column].Index == index)
+                    return column;
+            }
+            throw new InvalidOperationException("The fractional variable is not an original decision variable.");
+        }
+
+        private static int FindBasicVariableRow(double[,] tableau, int variableColumn)
+        {
+            for (int row = 1; row < tableau.GetLength(0); row++)
+            {
+                if (Math.Abs(tableau[row, variableColumn] - 1) > TOLERANCE)
+                    continue;
+
+                bool isBasic = true;
+                for (int otherRow = 0; otherRow < tableau.GetLength(0); otherRow++)
                 {
-                    if (k == i)
-                        continue;
-
-                    if (Math.Abs(
-                            tableau[k, variableColumn])
-                        > TOLERANCE)
+                    if (otherRow != row && Math.Abs(tableau[otherRow, variableColumn]) > TOLERANCE)
                     {
-                        basic = false;
+                        isBasic = false;
                         break;
                     }
                 }
 
-                if (basic)
-                    return i;
+                if (isBasic)
+                    return row;
             }
-
             return -1;
         }
 
-        private int GetVariableIndex(
-            string variableName)
+        private static bool IsBasicColumn(double[,] tableau, int column)
         {
-            return int.Parse(
-                variableName.Substring(1));
+            int basicRow = -1;
+            for (int row = 1; row < tableau.GetLength(0); row++)
+            {
+                double value = tableau[row, column];
+                if (Math.Abs(value - 1) <= TOLERANCE)
+                {
+                    if (basicRow != -1)
+                        return false;
+                    basicRow = row;
+                }
+                else if (Math.Abs(value) > TOLERANCE)
+                {
+                    return false;
+                }
+            }
+
+            return basicRow != -1 && Math.Abs(tableau[0, column]) <= TOLERANCE;
         }
 
-        private List<string> GetTableauVariableNames(
+        private static void AppendRowTerms(
+            StringBuilder builder,
+            double[,] tableau,
+            int row,
+            IList<string> headers)
+        {
+            for (int column = 0; column < tableau.GetLength(1) - 1; column++)
+            {
+                if (IsBasicColumn(tableau, column))
+                    continue;
+                AppendSignedTerm(builder, tableau[row, column], headers[column], true);
+            }
+        }
+
+        private static string FormatCutEquation(
+            double[] coefficients,
+            IList<string> headers,
+            string cutSlackName,
+            double rightHandSide)
+        {
+            var builder = new StringBuilder();
+            bool hasTerm = false;
+            for (int column = 0; column < coefficients.Length; column++)
+            {
+                double coefficient = coefficients[column];
+                if (Math.Abs(coefficient) <= TOLERANCE)
+                    continue;
+
+                AppendSignedTerm(builder, coefficient, headers[column], hasTerm);
+                hasTerm = true;
+            }
+
+            AppendSignedTerm(builder, 1, cutSlackName, hasTerm);
+            return builder + " = " + NumberFormatter.Format(rightHandSide);
+        }
+
+        private static void AppendSignedTerm(
+            StringBuilder builder,
+            double coefficient,
+            string variableName,
+            bool hasPreviousTerm)
+        {
+            if (Math.Abs(coefficient) <= TOLERANCE)
+                return;
+
+            if (hasPreviousTerm)
+                builder.Append(coefficient < 0 ? " - " : " + ");
+            else if (coefficient < 0)
+                builder.Append("-");
+
+            builder.Append(NumberFormatter.Format(Math.Abs(coefficient))).Append(variableName);
+        }
+
+        private static Dictionary<string, double> GetOriginalDecisionValues(
             Solution solution,
-            LinearProgram program)
+            LinearProgram originalProgram)
         {
-            var names =
-                program.Variables
-                    .Select(v => $"x{v.Index}")
-                    .ToList();
-
-            names.AddRange(
-                Enumerable.Range(
-                    1,
-                    solution.SlackCount)
-                .Select(i => $"s{i}"));
-
-            names.AddRange(
-                Enumerable.Range(
-                    1,
-                    solution.ExcessCount)
-                .Select(i => $"e{i}"));
-
-            names.AddRange(
-                Enumerable.Range(
-                    1,
-                    solution.ArtificialCount)
-                .Select(i => $"a{i}"));
-
-            return names;
-        }
-
-        private LinearProgram.Constraint CloneConstraint(
-            LinearProgram.Constraint constraint)
-        {
-            return new LinearProgram.Constraint
+            var values = new Dictionary<string, double>();
+            foreach (LinearProgram.Variable variable in originalProgram.Variables)
             {
-                Coefficients =
-                    new List<double>(
-                        constraint.Coefficients),
-
-                Relation =
-                    constraint.Relation,
-
-                Rhs =
-                    constraint.Rhs,
-
-                Slack =
-                    constraint.Slack
-            };
-        }
-
-        private string FormatSolution(
-            Solution solution)
-        {
-            var sb =
-                new StringBuilder();
-
-            foreach (var value in
-                solution.VariableValues
-                    .OrderBy(k => k.Key))
-            {
-                sb.Append(
-                    $"{value.Key} = " +
-                    $"{NumberFormatter.Format(value.Value)}, ");
+                string name = "x" + variable.Index;
+                double value;
+                values[name] = solution.VariableValues.TryGetValue(name, out value) &&
+                    Math.Abs(value) > TOLERANCE ? value : 0;
             }
-
-            sb.Append(
-                $"Z = " +
-                $"{NumberFormatter.Format(solution.OptimalValue)}");
-
-            return sb.ToString();
+            return values;
         }
 
-        public string FormatCanonicalForm(
-            LinearProgram program)
+        private static bool HasSolverFailure(Solution solution)
         {
-            var sb =
-                new StringBuilder();
+            return solution.Messages.Any(message =>
+                message.IndexOf("infeasible", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                message.IndexOf("unbounded", StringComparison.OrdinalIgnoreCase) >= 0);
+        }
 
-            sb.AppendLine(
-                "Canonical Form:");
+        private static void CopyMessages(Solution target, Solution source)
+        {
+            foreach (string message in source.Messages)
+                target.AddMessage(message);
+        }
 
-            sb.Append("Z");
+        private static void CopyResultMetadata(Solution target, Solution source)
+        {
+            target.VariableCount = source.VariableCount;
+            target.SlackCount = source.SlackCount;
+            target.ExcessCount = source.ExcessCount;
+            target.ArtificialCount = source.ArtificialCount;
+        }
 
-            for (int i = 0;
-                 i < program.Variables.Count;
-                 i++)
+        /// <summary>
+        /// Copies exact solver snapshots so the existing renderer continues to display the
+        /// live tableau and its pivots for the relaxation and every cut.
+        /// </summary>
+        private static void CopySimplexIterations(Solution target, Solution source, string labelPrefix)
+        {
+            for (int index = 0; index < source.IterationTableaux.Count; index++)
             {
-                double coefficient =
-                    program.IsMaximization
-                        ? -program.Variables[i].Coefficient
-                        : program.Variables[i].Coefficient;
+                List<string> headers = index < source.IterationColumnHeaders.Count
+                    ? source.IterationColumnHeaders[index]
+                    : null;
+                int pivotRow = index < source.IterationPivotRows.Count
+                    ? source.IterationPivotRows[index]
+                    : -1;
+                int pivotColumn = index < source.IterationPivotCols.Count
+                    ? source.IterationPivotCols[index]
+                    : -1;
+                string iterationMessage = source.IterationMessages[index];
+                string label = string.IsNullOrEmpty(labelPrefix)
+                    ? iterationMessage
+                    : labelPrefix + " - " + iterationMessage;
 
-                if (coefficient >= 0)
-                    sb.Append(
-                        $" + {NumberFormatter.Format(coefficient)}x{i + 1}");
+                target.AddIteration(source.IterationTableaux[index], label,
+                    pivotRow, pivotColumn, headers);
+            }
+        }
+
+        public string FormatCanonicalForm(LinearProgram program)
+        {
+            var result = new StringBuilder();
+            result.AppendLine("Canonical Form (with original tableau auxiliaries):");
+            result.Append("z");
+            for (int index = 0; index < program.Variables.Count; index++)
+            {
+                double coefficient = program.IsMaximization
+                    ? -program.Variables[index].Coefficient
+                    : program.Variables[index].Coefficient;
+                AppendSignedTerm(result, coefficient, "x" + program.Variables[index].Index, index > 0);
+            }
+            result.AppendLine(" = 0");
+            result.AppendLine();
+
+            int slackIndex = 0;
+            int excessIndex = 0;
+            int artificialIndex = 0;
+            foreach (LinearProgram.Constraint constraint in program.Constraints)
+            {
+                bool hasTerm = false;
+                for (int column = 0; column < constraint.Coefficients.Count; column++)
+                {
+                    AppendSignedTerm(result, constraint.Coefficients[column],
+                        "x" + program.Variables[column].Index, hasTerm);
+                    if (Math.Abs(constraint.Coefficients[column]) > TOLERANCE)
+                        hasTerm = true;
+                }
+
+                if (!hasTerm)
+                    result.Append("0");
+
+                if (constraint.Relation == LinearProgram.Relation.LessThanOrEqual)
+                    result.Append(" + s").Append(++slackIndex);
+                else if (constraint.Relation == LinearProgram.Relation.GreaterThanOrEqual)
+                    result.Append(" - e").Append(++excessIndex);
                 else
-                    sb.Append(
-                        $" - {NumberFormatter.Format(-coefficient)}x{i + 1}");
+                    result.Append(" + a").Append(++artificialIndex);
+
+                result.Append(" = ").AppendLine(NumberFormatter.Format(constraint.Rhs));
             }
 
-            sb.AppendLine(" = 0");
-            sb.AppendLine();
-
-            int slackIndex = 1;
-
-            foreach (var constraint in
-                program.Constraints)
-            {
-                bool first = true;
-
-                for (int j = 0;
-                     j < constraint.Coefficients.Count &&
-                     j < program.Variables.Count;
-                     j++)
-                {
-                    double coefficient =
-                        constraint.Coefficients[j];
-
-                    if (Math.Abs(coefficient) <= TOLERANCE)
-                        continue;
-
-                    if (!first)
-                    {
-                        sb.Append(
-                            coefficient >= 0 ? " + " : " - ");
-                    }
-                    else if (coefficient < 0)
-                    {
-                        sb.Append("-");
-                    }
-
-                    sb.Append(
-                        $"{NumberFormatter.Format(Math.Abs(coefficient))}x{j + 1}");
-
-                    first = false;
-                }
-
-                if (constraint.Relation ==
-                    LinearProgram.Relation.LessThanOrEqual)
-                {
-                    sb.Append($" + s{slackIndex}");
-                    slackIndex++;
-                }
-                else if (constraint.Relation ==
-                         LinearProgram.Relation.GreaterThanOrEqual)
-                {
-                    sb.Append($" - e{slackIndex}");
-                    slackIndex++;
-                }
-
-                sb.AppendLine(
-                    $" = {NumberFormatter.Format(constraint.Rhs)}");
-            }
-
-            sb.AppendLine();
-            sb.AppendLine(
-                "Integer variables: " +
-                string.Join(
-                    ", ",
-                    program.Variables
-                        .Where(v =>
-                            v.Type ==
-                                LinearProgram.VariableType.Integer ||
-                            v.Type ==
-                                LinearProgram.VariableType.Binary)
-                        .Select(v => $"x{v.Index}")));
-
-            return sb.ToString();
+            result.AppendLine();
+            result.AppendLine("Generated g# cut slacks are continuous tableau auxiliaries.");
+            return result.ToString();
         }
 
         private class CutInfo
         {
-            public LinearProgram.Constraint Constraint { get; set; }
-            public string Explanation { get; set; }
+            public double[] TableauCoefficients { get; set; }
+            public double RightHandSide { get; set; }
+            public string CanonicalEquation { get; set; }
+            public string GenerationSteps { get; set; }
         }
     }
 }
