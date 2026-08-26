@@ -264,6 +264,144 @@ namespace Group_V_26_LPR381_Project.Algorithms
             return solution;
         }
 
+        /// <summary>
+        /// Appends a Gomory/GMI cut to the current optimal tableau without rebuilding the
+        /// original LP.  The caller supplies the cut in tableau coordinates (one entry for
+        /// every current non-RHS column), already arranged as
+        ///     cutCoefficients * columns + cutSlack = cutRhs.
+        /// The new cut-slack column is deliberately an auxiliary tableau column, never a
+        /// decision variable in <see cref="LinearProgram.Variables"/>.
+        /// </summary>
+        public Solution AppendGomoryCutAndResolve(
+            double[] cutCoefficients,
+            double cutRhs,
+            string cutSlackName)
+        {
+            if (_matrix == null)
+                throw new InvalidOperationException("Must solve the LP relaxation before adding a Gomory cut.");
+            if (cutCoefficients == null || cutCoefficients.Length != _cols - 1)
+                throw new ArgumentException("A Gomory cut must provide one coefficient for every current tableau column.");
+            if (string.IsNullOrWhiteSpace(cutSlackName))
+                throw new ArgumentException("A name is required for the Gomory cut slack variable.");
+            if (_auxiliaryVariableNames.Contains(cutSlackName))
+                throw new ArgumentException("The Gomory cut slack variable name is already in use.");
+
+            var solution = new Solution
+            {
+                VariableCount = _program.Variables.Count,
+                SlackCount = _slackCount,
+                ExcessCount = _excessCount,
+                ArtificialCount = _artificialCount
+            };
+
+            solution.AddStep("Current Optimal Tableau:", ToString());
+            solution.AddMessage("Appending Gomory cut with continuous auxiliary " + cutSlackName + ".");
+
+            int oldRows = _rows;
+            int oldCols = _cols;
+            var expanded = new double[oldRows + 1, oldCols + 1];
+
+            // Keep every existing tableau coefficient and the objective row exactly as it
+            // is.  Only insert the new auxiliary column immediately before RHS.
+            for (int row = 0; row < oldRows; row++)
+            {
+                for (int column = 0; column < oldCols - 1; column++)
+                    expanded[row, column] = _matrix[row, column];
+
+                expanded[row, oldCols] = _matrix[row, oldCols - 1];
+            }
+
+            int cutRow = oldRows;
+            for (int column = 0; column < oldCols - 1; column++)
+                expanded[cutRow, column] = cutCoefficients[column];
+
+            expanded[cutRow, oldCols - 1] = 1.0;
+            expanded[cutRow, oldCols] = cutRhs;
+
+            _matrix = expanded;
+            _rows = expanded.GetLength(0);
+            _cols = expanded.GetLength(1);
+            _auxiliaryVariableNames.Add(cutSlackName);
+            _basisColumnIndices = null;
+
+            solution.AddIteration((double[,])_matrix.Clone(),
+                "After appending Gomory cut " + cutSlackName, -1, -1, GetColumnHeaders());
+
+            // A correctly formed cut leaves the objective row dual-feasible and gives the
+            // new cut-slack a negative RHS.  Restore primal feasibility from this tableau;
+            // do not solve a newly reconstructed model.
+            while (HasNegativeRHS())
+            {
+                int pivotRow = FindDualPivotRow();
+                if (pivotRow == -1)
+                {
+                    solution.AddMessage("Problem is integer infeasible - no negative RHS row was found after the Gomory cut.");
+                    return solution;
+                }
+
+                int pivotCol = FindDualPivotColumn(pivotRow);
+                if (pivotCol == -1)
+                {
+                    solution.AddMessage("Problem is integer infeasible - no valid dual-simplex pivot exists after the Gomory cut.");
+                    return solution;
+                }
+
+                solution.AddMessage($"Dual Phase: Pivoting on row {pivotRow + 1}, column {pivotCol + 1} (RHS = {NumberFormatter.Format(_matrix[pivotRow, _cols - 1])})");
+                Pivot(pivotRow, pivotCol);
+                solution.AddStep($"Dual Iteration {IterationCount}: Pivot on row {pivotRow + 1}, column {pivotCol + 1}", ToString());
+                solution.AddIteration((double[,])_matrix.Clone(),
+                    $"After Dual Iteration {IterationCount}", pivotRow, pivotCol, GetColumnHeaders());
+            }
+
+            solution.AddMessage("Dual phase complete - all RHS values are non-negative.");
+
+            // The cut keeps dual feasibility, so this phase is normally a no-op.  Retaining
+            // it guards against numerical drift without changing the existing solver rules.
+            while (!IsOptimal())
+            {
+                int pivotCol = FindPrimalPivotColumn();
+                if (pivotCol == -1)
+                    break;
+
+                int pivotRow = FindPrimalPivotRow(pivotCol);
+                if (pivotRow == -1)
+                {
+                    solution.AddMessage("Problem is unbounded - no valid primal pivot exists after the Gomory cut.");
+                    return solution;
+                }
+
+                solution.AddMessage($"Primal Phase: Pivoting on row {pivotRow + 1}, column {pivotCol + 1}");
+                Pivot(pivotRow, pivotCol);
+                solution.AddStep($"Primal Iteration {IterationCount}: Pivot on row {pivotRow + 1}, column {pivotCol + 1}", ToString());
+                solution.AddIteration((double[,])_matrix.Clone(),
+                    $"After Primal Iteration {IterationCount}", pivotRow, pivotCol, GetColumnHeaders());
+            }
+
+            if (HasArtificialInBasisWithPositiveValue())
+            {
+                solution.AddMessage("Problem is integer infeasible: an artificial variable remains basic at a positive value.");
+                return solution;
+            }
+
+            solution.OptimalValue = GetObjectiveValue();
+            solution.VariableValues = GetSolution();
+            solution.AddStep("Final Tableau:", ToString());
+            solution.FinalTableau = (double[,])_matrix.Clone();
+            return solution;
+        }
+
+        /// <summary>
+        /// Exposes the ordered headers of the live tableau so Cutting Plane can create a cut
+        /// in the same coordinates.  A copy prevents callers from mutating solver state.
+        /// </summary>
+        public List<string> GetCurrentColumnHeaders()
+        {
+            if (_matrix == null)
+                throw new InvalidOperationException("No tableau is available.");
+
+            return new List<string>(GetColumnHeaders());
+        }
+
         private void BuildTableau()
         {
             _rows = _program.Constraints.Count + 1;
@@ -386,7 +524,13 @@ namespace Group_V_26_LPR381_Project.Algorithms
             {
                 int col = _program.Variables.Count + _slackCount + _excessCount + a;
                 int row = FindRowWithUnitCoefficient(col);
-                if (row != -1 && _matrix[row, _cols - 1] > TOL)
+                // A unit entry in a constraint row alone is not enough after pivots: a
+                // nonbasic artificial column can still contain a 1 in a row.  It is basic
+                // only when its objective-row coefficient is also zero in the canonical
+                // tableau.  Without this check a feasible equality LP such as x = 0.5 is
+                // falsely declared infeasible before Cutting Plane can add its first cut.
+                if (row != -1 && Math.Abs(_matrix[0, col]) <= TOL &&
+                    _matrix[row, _cols - 1] > TOL)
                     return true;
             }
             return false;
