@@ -152,6 +152,8 @@
     <Content Include="Data\CuttingPlaneGolden.txt" />
     <Content Include="Data\CuttingPlaneMultiCut.txt" />
     <Content Include="Data\CuttingPlaneIntegerInfeasible.txt" />
+    <Content Include="Data\CuttingPlaneMinimisation.txt" />
+    <Content Include="Data\CuttingPlaneMixed.txt" />
     <Content Include="Data\GodenSection1.txt" />
     <Content Include="Data\GoldenSection2.txt" />
     <Content Include="Data\Primal1.txt" />

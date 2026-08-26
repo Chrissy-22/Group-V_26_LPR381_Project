@@ -7,6 +7,41 @@ using static Group_V_26_LPR381_Project.Models.LinearProgram;
 
 namespace Group_V_26_LPR381_Project.Algorithms
 {
+    /// <summary>
+    /// The semantic role of a live tableau column.  Cutting Plane uses this instead of
+    /// inferring integrality from display names such as s1 or g1.
+    /// </summary>
+    public enum TableauColumnRole
+    {
+        OriginalDecision,
+        OriginalSlack,
+        OriginalExcess,
+        Artificial,
+        GeneratedCutSlack,
+        AddedConstraintAuxiliary,
+        UnknownAuxiliary
+    }
+
+    /// <summary>
+    /// Immutable provenance for one non-RHS tableau column.
+    /// </summary>
+    public sealed class TableauColumnMetadata
+    {
+        public string Name { get; private set; }
+        public TableauColumnRole Role { get; private set; }
+        public int OriginalVariablePosition { get; private set; }
+        public int OriginalConstraintIndex { get; private set; }
+
+        public TableauColumnMetadata(string name, TableauColumnRole role,
+            int originalVariablePosition = -1, int originalConstraintIndex = -1)
+        {
+            Name = name;
+            Role = role;
+            OriginalVariablePosition = originalVariablePosition;
+            OriginalConstraintIndex = originalConstraintIndex;
+        }
+    }
+
     public class DualSimplex : ISolver
     {
         private const double TOL = 1e-6;
@@ -20,6 +55,7 @@ namespace Group_V_26_LPR381_Project.Algorithms
         private int _excessCount;
         private int _artificialCount;
         private List<string> _auxiliaryVariableNames;
+        private List<TableauColumnMetadata> _columnMetadata;
         private List<int> _basisColumnIndices;
         private ConstraintHandler _constraintHandler;
         public int IterationCount { get; private set; }
@@ -67,6 +103,7 @@ namespace Group_V_26_LPR381_Project.Algorithms
             _excessCount = excessCount;
             _artificialCount = artificialCount;
             _auxiliaryVariableNames = new List<string>(auxiliaryVariableNames);
+            _columnMetadata = CreateLegacyColumnMetadata(program, _auxiliaryVariableNames);
             _basisColumnIndices = new List<int>(basicColumnIndices);
             IterationCount = 0;
         }
@@ -187,6 +224,14 @@ namespace Group_V_26_LPR381_Project.Algorithms
             _excessCount = result.NewExcessCount;
             _artificialCount = result.NewArtificialCount;
             _auxiliaryVariableNames = result.NewAuxiliaryVariableNames;
+            if (_columnMetadata != null)
+            {
+                // This extra constraint is live-tableau state, not an original program row.
+                // Its conservative -1 provenance prevents it from being mistaken for an
+                // integer-restricted original auxiliary by any later tableau consumer.
+                _columnMetadata.Add(new TableauColumnMetadata(
+                    _auxiliaryVariableNames.Last(), TableauColumnRole.AddedConstraintAuxiliary));
+            }
 
             solution.SlackCount = _slackCount;
             solution.ExcessCount = _excessCount;
@@ -322,6 +367,8 @@ namespace Group_V_26_LPR381_Project.Algorithms
             _rows = expanded.GetLength(0);
             _cols = expanded.GetLength(1);
             _auxiliaryVariableNames.Add(cutSlackName);
+            _columnMetadata.Add(new TableauColumnMetadata(cutSlackName,
+                TableauColumnRole.GeneratedCutSlack));
             _basisColumnIndices = null;
 
             solution.AddIteration((double[,])_matrix.Clone(),
@@ -402,12 +449,28 @@ namespace Group_V_26_LPR381_Project.Algorithms
             return new List<string>(GetColumnHeaders());
         }
 
+        /// <summary>
+        /// Supplies stable column provenance for live-tableau consumers.  In particular,
+        /// generated Gomory cut slacks remain explicitly continuous auxiliaries even after
+        /// later cuts have changed their displayed position.
+        /// </summary>
+        public List<TableauColumnMetadata> GetCurrentColumnMetadata()
+        {
+            if (_matrix == null || _columnMetadata == null)
+                throw new InvalidOperationException("No tableau metadata is available.");
+
+            return _columnMetadata.Select(metadata => new TableauColumnMetadata(
+                metadata.Name, metadata.Role, metadata.OriginalVariablePosition,
+                metadata.OriginalConstraintIndex)).ToList();
+        }
+
         private void BuildTableau()
         {
             _rows = _program.Constraints.Count + 1;
             _cols = _program.Variables.Count + _program.Constraints.Count + 1;
             _matrix = new double[_rows, _cols];
             _auxiliaryVariableNames = new List<string>();
+            _columnMetadata = new List<TableauColumnMetadata>();
             _basisColumnIndices = null;
             _slackCount = 0;
             _excessCount = 0;
@@ -419,6 +482,8 @@ namespace Group_V_26_LPR381_Project.Algorithms
             for (int j = 0; j < _program.Variables.Count; j++)
             {
                 _matrix[0, j] = _program.IsMaximization ? -_program.Variables[j].Coefficient : _program.Variables[j].Coefficient;
+                _columnMetadata.Add(new TableauColumnMetadata("x" + _program.Variables[j].Index,
+                    TableauColumnRole.OriginalDecision, j));
             }
             _matrix[0, _cols - 1] = 0;
 
@@ -437,17 +502,20 @@ namespace Group_V_26_LPR381_Project.Algorithms
                 _matrix[i + 1, _cols - 1] = constraint.Rhs;
 
                 string auxName;
+                TableauColumnRole auxRole;
                 switch (constraint.Relation)
                 {
                     case Relation.LessThanOrEqual:
                         _slackCount++;
                         auxName = $"s{_slackCount}";
+                        auxRole = TableauColumnRole.OriginalSlack;
                         _matrix[i + 1, auxIndex] = 1;
                         break;
 
                     case Relation.GreaterThanOrEqual:
                         _excessCount++;
                         auxName = $"e{_excessCount}";
+                        auxRole = TableauColumnRole.OriginalExcess;
                         // Multiply the row by -1 so the excess variable's coefficient is +1,
                         // which pushes the RHS negative and lets Phase 1 dual simplex handle it.
                         for (int j = 0; j < _cols; j++)
@@ -460,6 +528,7 @@ namespace Group_V_26_LPR381_Project.Algorithms
                     case Relation.Equal:
                         _artificialCount++;
                         auxName = $"a{_artificialCount}";
+                        auxRole = TableauColumnRole.Artificial;
                         _matrix[i + 1, auxIndex] = 1;
                         // Raw Big-M penalty placed in the objective row for this column.
                         // This is NOT yet in canonical form - it must be eliminated below
@@ -472,6 +541,8 @@ namespace Group_V_26_LPR381_Project.Algorithms
                         throw new InvalidOperationException("Unsupported relation");
                 }
                 _auxiliaryVariableNames.Add(auxName);
+                _columnMetadata.Add(new TableauColumnMetadata(auxName, auxRole,
+                    -1, i));
                 auxIndex++;
             }
 
@@ -542,6 +613,75 @@ namespace Group_V_26_LPR381_Project.Algorithms
             headers.AddRange(_auxiliaryVariableNames);
             headers.Add("RHS");
             return headers;
+        }
+
+        private static List<TableauColumnMetadata> CreateLegacyColumnMetadata(
+            LinearProgram program, List<string> auxiliaryNames)
+        {
+            var metadata = new List<TableauColumnMetadata>();
+            for (int index = 0; index < program.Variables.Count; index++)
+            {
+                metadata.Add(new TableauColumnMetadata("x" + program.Variables[index].Index,
+                    TableauColumnRole.OriginalDecision, index));
+            }
+
+            // LoadOptimalTableau is a legacy entry point used by ConstraintHandler and
+            // Sensitivity Analysis.  It has only the legacy names, so preserve their
+            // original ordering while keeping generated auxiliaries conservative.
+            int slack = 0;
+            int excess = 0;
+            int artificial = 0;
+            for (int index = 0; index < auxiliaryNames.Count; index++)
+            {
+                TableauColumnRole role = TableauColumnRole.UnknownAuxiliary;
+                int constraintIndex = -1;
+                string name = auxiliaryNames[index];
+                if (name == "s" + (slack + 1))
+                {
+                    slack++;
+                    role = TableauColumnRole.OriginalSlack;
+                }
+                else if (name == "e" + (excess + 1))
+                {
+                    excess++;
+                    role = TableauColumnRole.OriginalExcess;
+                }
+                else if (name == "a" + (artificial + 1))
+                {
+                    artificial++;
+                    role = TableauColumnRole.Artificial;
+                }
+
+                if (role == TableauColumnRole.OriginalSlack || role == TableauColumnRole.OriginalExcess ||
+                    role == TableauColumnRole.Artificial)
+                {
+                    constraintIndex = FindOriginalConstraintIndex(program, role, slack, excess, artificial);
+                }
+                metadata.Add(new TableauColumnMetadata(name, role, -1, constraintIndex));
+            }
+            return metadata;
+        }
+
+        private static int FindOriginalConstraintIndex(LinearProgram program, TableauColumnRole role,
+            int slackCount, int excessCount, int artificialCount)
+        {
+            int slack = 0;
+            int excess = 0;
+            int artificial = 0;
+            for (int index = 0; index < program.Constraints.Count; index++)
+            {
+                LinearProgram.Relation relation = program.Constraints[index].Relation;
+                if (relation == Relation.LessThanOrEqual && ++slack == slackCount &&
+                    role == TableauColumnRole.OriginalSlack)
+                    return index;
+                if (relation == Relation.GreaterThanOrEqual && ++excess == excessCount &&
+                    role == TableauColumnRole.OriginalExcess)
+                    return index;
+                if (relation == Relation.Equal && ++artificial == artificialCount &&
+                    role == TableauColumnRole.Artificial)
+                    return index;
+            }
+            return -1;
         }
 
         private bool HasNegativeRHS()
@@ -799,6 +939,10 @@ namespace Group_V_26_LPR381_Project.Algorithms
             cloned._excessCount = this._excessCount;
             cloned._artificialCount = this._artificialCount;
             cloned._auxiliaryVariableNames = new List<string>(this._auxiliaryVariableNames);
+            cloned._columnMetadata = this._columnMetadata == null ? null :
+                this._columnMetadata.Select(metadata => new TableauColumnMetadata(
+                    metadata.Name, metadata.Role, metadata.OriginalVariablePosition,
+                    metadata.OriginalConstraintIndex)).ToList();
             cloned._basisColumnIndices = this._basisColumnIndices == null
                 ? null
                 : new List<int>(this._basisColumnIndices);

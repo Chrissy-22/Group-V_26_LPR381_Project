@@ -8,7 +8,7 @@ using System.Text;
 namespace LinearProgrammingSolver.Algorithms
 {
     /// <summary>
-    /// Gomory cutting-plane solver for pure integer maximisation models.
+    /// Gomory mixed-integer cutting-plane solver for maximisation and minimisation models.
     ///
     /// Cuts are formed from the live optimal tableau and appended directly to it.  This is
     /// important: a cut row is in tableau coordinates, not in the original model's decision
@@ -39,6 +39,7 @@ namespace LinearProgrammingSolver.Algorithms
 
             Solution currentSolution = _dualSimplex.Solve(workingProgram);
             CopySimplexIterations(solution, currentSolution, "LP Relaxation");
+            CopyResultMetadata(solution, currentSolution);
 
             if (HasSolverFailure(currentSolution))
             {
@@ -47,7 +48,6 @@ namespace LinearProgrammingSolver.Algorithms
                 return solution;
             }
 
-            HashSet<string> integralAuxiliaries = GetIntegralOriginalAuxiliaries(workingProgram);
             int cutCount = 0;
 
             while (cutCount < MAX_CUTS)
@@ -79,7 +79,6 @@ namespace LinearProgrammingSolver.Algorithms
                     currentSolution,
                     fractionalVariable.Item1,
                     workingProgram,
-                    integralAuxiliaries,
                     cutSlackName);
 
                 if (cut == null)
@@ -99,6 +98,7 @@ namespace LinearProgrammingSolver.Algorithms
                     cutSlackName);
 
                 CopySimplexIterations(solution, currentSolution, "After Cut " + cutCount);
+                CopyResultMetadata(solution, currentSolution);
 
                 if (HasSolverFailure(currentSolution))
                 {
@@ -123,9 +123,8 @@ namespace LinearProgrammingSolver.Algorithms
         }
 
         /// <summary>
-        /// The current implementation deliberately supports pure integer maximisation only.
-        /// Mixed models need the complete GMI treatment for continuous original variables;
-        /// accepting them here would make an invalid cut look like a valid answer.
+        /// Cutting Plane needs at least one original integer-restricted decision variable.
+        /// Both objective directions and mixed rows are handled by the GMI calculation.
         /// </summary>
         private bool ValidateSupportedModel(LinearProgram program, Solution solution)
         {
@@ -136,26 +135,11 @@ namespace LinearProgrammingSolver.Algorithms
                 return false;
             }
 
-            if (!program.IsMaximization)
-            {
-                solution.AddMessage("Result: UNSUPPORTED MODEL");
-                solution.AddMessage("Cutting Plane currently supports maximisation models only.");
-                return false;
-            }
-
             bool hasIntegerVariable = program.Variables.Any(IsIntegerRestricted);
-            bool hasContinuousVariable = program.Variables.Any(variable => !IsIntegerRestricted(variable));
             if (!hasIntegerVariable)
             {
                 solution.AddMessage("Result: UNSUPPORTED MODEL");
                 solution.AddMessage("Cutting Plane requires at least one original integer or binary decision variable.");
-                return false;
-            }
-
-            if (hasContinuousVariable)
-            {
-                solution.AddMessage("Result: UNSUPPORTED MODEL");
-                solution.AddMessage("Mixed-integer Cutting Plane is intentionally unsupported: a complete GMI implementation is required for continuous original variables.");
                 return false;
             }
 
@@ -259,7 +243,6 @@ namespace LinearProgrammingSolver.Algorithms
             Solution solution,
             string fractionalVariableName,
             LinearProgram program,
-            HashSet<string> integralAuxiliaries,
             string cutSlackName)
         {
             if (solution.FinalTableau == null)
@@ -267,7 +250,8 @@ namespace LinearProgrammingSolver.Algorithms
 
             double[,] tableau = solution.FinalTableau;
             List<string> headers = _dualSimplex.GetCurrentColumnHeaders();
-            if (headers.Count != tableau.GetLength(1))
+            List<TableauColumnMetadata> metadata = _dualSimplex.GetCurrentColumnMetadata();
+            if (headers.Count != tableau.GetLength(1) || metadata.Count != tableau.GetLength(1) - 1)
                 throw new InvalidOperationException("The live tableau headers do not match the tableau dimensions.");
 
             int fractionalVariableColumn = GetOriginalVariableColumn(program, fractionalVariableName);
@@ -303,7 +287,7 @@ namespace LinearProgrammingSolver.Algorithms
 
                 double coefficient = tableau[sourceRow, column];
                 bool integerColumn = IsIntegerTableauColumn(
-                    column, headers[column], program, integralAuxiliaries);
+                    metadata[column], program);
                 double alpha;
 
                 if (integerColumn)
@@ -347,43 +331,46 @@ namespace LinearProgrammingSolver.Algorithms
         }
 
         private static bool IsIntegerTableauColumn(
-            int column,
-            string header,
-            LinearProgram program,
-            HashSet<string> integralAuxiliaries)
+            TableauColumnMetadata metadata,
+            LinearProgram program)
         {
-            if (column < program.Variables.Count)
-                return IsIntegerRestricted(program.Variables[column]);
-
-            return integralAuxiliaries.Contains(header);
-        }
-
-        private static HashSet<string> GetIntegralOriginalAuxiliaries(LinearProgram program)
-        {
-            var names = new HashSet<string>();
-            int slackIndex = 0;
-            int excessIndex = 0;
-
-            foreach (LinearProgram.Constraint constraint in program.Constraints)
+            if (metadata.Role == TableauColumnRole.OriginalDecision)
             {
-                bool isIntegralRow = IsNearlyInteger(constraint.Rhs) &&
-                    constraint.Coefficients.All(IsNearlyInteger);
-
-                if (constraint.Relation == LinearProgram.Relation.LessThanOrEqual)
-                {
-                    slackIndex++;
-                    if (isIntegralRow)
-                        names.Add("s" + slackIndex);
-                }
-                else if (constraint.Relation == LinearProgram.Relation.GreaterThanOrEqual)
-                {
-                    excessIndex++;
-                    if (isIntegralRow)
-                        names.Add("e" + excessIndex);
-                }
+                return metadata.OriginalVariablePosition >= 0 &&
+                    metadata.OriginalVariablePosition < program.Variables.Count &&
+                    IsIntegerRestricted(program.Variables[metadata.OriginalVariablePosition]);
             }
 
-            return names;
+            if (metadata.Role != TableauColumnRole.OriginalSlack &&
+                metadata.Role != TableauColumnRole.OriginalExcess)
+                return false;
+
+            return IsIntegralOriginalConstraintAuxiliary(metadata.OriginalConstraintIndex, program);
+        }
+
+        /// <summary>
+        /// A slack/excess can be integer-restricted only when its original constraint is
+        /// integral and every decision variable contributing to that row is itself integer
+        /// restricted.  Integer coefficients/RHS alone are insufficient in a mixed model.
+        /// </summary>
+        private static bool IsIntegralOriginalConstraintAuxiliary(
+            int constraintIndex, LinearProgram program)
+        {
+            if (constraintIndex < 0 || constraintIndex >= program.Constraints.Count)
+                return false;
+
+            LinearProgram.Constraint constraint = program.Constraints[constraintIndex];
+            if (!IsNearlyInteger(constraint.Rhs) || !constraint.Coefficients.All(IsNearlyInteger))
+                return false;
+
+            for (int column = 0; column < constraint.Coefficients.Count; column++)
+            {
+                if (Math.Abs(constraint.Coefficients[column]) > TOLERANCE &&
+                    !IsIntegerRestricted(program.Variables[column]))
+                    return false;
+            }
+
+            return true;
         }
 
         private static bool IsNearlyInteger(double value)
@@ -391,12 +378,21 @@ namespace LinearProgrammingSolver.Algorithms
             return Math.Abs(value - Math.Round(value)) <= TOLERANCE;
         }
 
-        private static double FractionalPart(double value)
+        /// <summary>
+        /// Mathematical fractional part used by GMI: frac(a) = a - floor(a).  Values within
+        /// the solver tolerance of an integer are normalized to zero.
+        /// </summary>
+        internal static double FractionalPart(double value)
         {
             double fraction = value - Math.Floor(value);
             if (fraction <= TOLERANCE || 1 - fraction <= TOLERANCE)
                 return 0;
             return fraction;
+        }
+
+        internal static bool IsIntegerWithinTolerance(double value)
+        {
+            return FractionalPart(value) == 0;
         }
 
         private static int GetOriginalVariableColumn(LinearProgram program, string variableName)
@@ -535,6 +531,14 @@ namespace LinearProgrammingSolver.Algorithms
                 target.AddMessage(message);
         }
 
+        private static void CopyResultMetadata(Solution target, Solution source)
+        {
+            target.VariableCount = source.VariableCount;
+            target.SlackCount = source.SlackCount;
+            target.ExcessCount = source.ExcessCount;
+            target.ArtificialCount = source.ArtificialCount;
+        }
+
         /// <summary>
         /// Copies exact solver snapshots so the existing renderer continues to display the
         /// live tableau and its pivots for the relaxation and every cut.
@@ -569,7 +573,9 @@ namespace LinearProgrammingSolver.Algorithms
             result.Append("z");
             for (int index = 0; index < program.Variables.Count; index++)
             {
-                double coefficient = -program.Variables[index].Coefficient;
+                double coefficient = program.IsMaximization
+                    ? -program.Variables[index].Coefficient
+                    : program.Variables[index].Coefficient;
                 AppendSignedTerm(result, coefficient, "x" + program.Variables[index].Index, index > 0);
             }
             result.AppendLine(" = 0");
