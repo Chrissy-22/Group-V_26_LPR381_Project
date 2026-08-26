@@ -142,6 +142,10 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="Data\Assignment 1.txt" />
+    <Content Include="Data\BranchandBound - Infeasible.txt" />
+    <Content Include="Data\BranchandBound - Unbound.txt" />
+    <Content Include="Data\Primal - Infeasible.txt" />
+    <Content Include="Data\Primal - Unbound.txt" />
     <Content Include="Data\Project Example.txt" />
     <Content Include="Data\BranchandBound1.txt" />
     <Content Include="Data\BranchandBound2.txt" />

@@ -984,31 +984,20 @@ namespace Group_V_26_LPR381_Project.Algorithms
                     if (first)
                     {
                         sb.Append(
-                            " - " +
+                            (coefficient >= 0 ? " + " : " - ") +
                             NumberFormatter.Format(Math.Abs(coefficient)) +
-                            "x" + (i + 1)
+                            "x" + (j + 1)
                         );
 
                         first = false;
                     }
                     else
                     {
-                        if (coefficient >= 0)
-                        {
-                            sb.Append(
-                                " + " +
-                                NumberFormatter.Format(coefficient) +
-                                "x" + (j + 1)
-                            );
-                        }
-                        else
-                        {
-                            sb.Append(
-                                " - " +
-                                NumberFormatter.Format(Math.Abs(coefficient)) +
-                                "x" + (j + 1)
-                            );
-                        }
+                        sb.Append(
+                            (coefficient >= 0 ? " + " : " - ") +
+                            NumberFormatter.Format(Math.Abs(coefficient)) +
+                            "x" + (j + 1)
+                        );
                     }
                 }
 
