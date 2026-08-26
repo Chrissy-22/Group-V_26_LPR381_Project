@@ -218,12 +218,14 @@ namespace Group_V_26_LPR381_Project.Algorithms
 
                 if (basicRow != -1 && Math.Abs(result.NewTableau[newConstraintRow, varCol]) > TOL)
                 {
-                    result.Messages.Add($"Basic variable x{varCol + 1} was basic in row {basicRow + 1}, but now has coefficient " +
-                        $"{NumberFormatter.Format(result.NewTableau[newConstraintRow, varCol])} in new constraint. Fixing by subtracting row {basicRow + 1} - new constraint.");
+                    double factor = result.NewTableau[newConstraintRow, varCol];
+
+                    result.Messages.Add($"Basic variable x{varCol + 1} was basic in row {basicRow + 1}, but has coefficient " +
+                        $"{NumberFormatter.Format(factor)} in the new constraint. Eliminating by subtracting {NumberFormatter.Format(factor)} × row {basicRow + 1}.");
 
                     for (int j = 0; j < cols; j++)
                     {
-                        result.NewTableau[newConstraintRow, j] = result.NewTableau[basicRow, j] - result.NewTableau[newConstraintRow, j];
+                        result.NewTableau[newConstraintRow, j] -= factor * result.NewTableau[basicRow, j];
                     }
                 }
             }
