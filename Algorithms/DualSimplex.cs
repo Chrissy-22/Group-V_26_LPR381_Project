@@ -19,6 +19,7 @@ namespace Group_V_26_LPR381_Project.Algorithms
         Artificial,
         GeneratedCutSlack,
         AddedConstraintAuxiliary,
+        AddedConstraintArtificial,
         UnknownAuxiliary
     }
 
@@ -230,7 +231,9 @@ namespace Group_V_26_LPR381_Project.Algorithms
                 // Its conservative -1 provenance prevents it from being mistaken for an
                 // integer-restricted original auxiliary by any later tableau consumer.
                 _columnMetadata.Add(new TableauColumnMetadata(
-                    _auxiliaryVariableNames.Last(), TableauColumnRole.AddedConstraintAuxiliary));
+                    _auxiliaryVariableNames.Last(), constraint.Relation == Relation.Equal
+                        ? TableauColumnRole.AddedConstraintArtificial
+                        : TableauColumnRole.AddedConstraintAuxiliary));
             }
 
             solution.SlackCount = _slackCount;
@@ -591,15 +594,19 @@ namespace Group_V_26_LPR381_Project.Algorithms
 
         private bool HasArtificialInBasisWithPositiveValue()
         {
-            for (int a = 0; a < _artificialCount; a++)
+            for (int col = 0; col < _columnMetadata.Count; col++)
             {
-                int col = _program.Variables.Count + _slackCount + _excessCount + a;
+                TableauColumnRole role = _columnMetadata[col].Role;
+                if (role != TableauColumnRole.Artificial &&
+                    role != TableauColumnRole.AddedConstraintArtificial)
+                    continue;
+
                 int row = FindRowWithUnitCoefficient(col);
                 // A unit entry in a constraint row alone is not enough after pivots: a
                 // nonbasic artificial column can still contain a 1 in a row.  It is basic
                 // only when its objective-row coefficient is also zero in the canonical
-                // tableau.  Without this check a feasible equality LP such as x = 0.5 is
-                // falsely declared infeasible before Cutting Plane can add its first cut.
+                // tableau.  Looking up the column provenance also avoids confusing an
+                // appended slack with an earlier artificial after AddConstraintAndResolve.
                 if (row != -1 && Math.Abs(_matrix[0, col]) <= TOL &&
                     _matrix[row, _cols - 1] > TOL)
                     return true;

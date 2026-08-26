@@ -282,6 +282,22 @@ namespace Group_V_26_LPR381_Project.Tests
             AssertTrue("feasible equality is not marked infeasible", !equality.Messages.Any(message =>
                 message.IndexOf("infeasible", StringComparison.OrdinalIgnoreCase) >= 0));
 
+            var equalityDual = new Group_V_26_LPR381_Project.Algorithms.DualSimplex();
+            equalityDual.Solve(LinearProgram.Parse("max + 1\n+ 1 = 0.5\n+"));
+            var redundantUpperBound = new LinearProgram.Constraint
+            {
+                Relation = LinearProgram.Relation.LessThanOrEqual,
+                Rhs = 1
+            };
+            redundantUpperBound.Coefficients.Add(1);
+            Solution equalityWithAddedConstraint = equalityDual.AddConstraintAndResolve(redundantUpperBound);
+            AssertClose("equality plus added constraint z", 0.5, equalityWithAddedConstraint.OptimalValue);
+            AssertClose("equality plus added constraint x1", 0.5,
+                equalityWithAddedConstraint.VariableValues["x1"]);
+            AssertTrue("added slack is not mistaken for an artificial",
+                !equalityWithAddedConstraint.Messages.Any(message =>
+                    message.IndexOf("infeasible", StringComparison.OrdinalIgnoreCase) >= 0));
+
             Solution infeasible = new Group_V_26_LPR381_Project.Algorithms.DualSimplex().Solve(
                 LinearProgram.Parse("max + 1\n+ 1 <= 0\n+ 1 >= 1\n+"));
             AssertTrue("Dual infeasible LP remains detected", infeasible.Messages.Any(message =>
